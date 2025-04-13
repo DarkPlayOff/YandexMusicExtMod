@@ -81,7 +81,7 @@
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 16.666666F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 16.666666F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 16.666666F));
-            tableLayoutPanel1.Size = new Size(284, 83);
+            tableLayoutPanel1.Size = new Size(284, 92);
             tableLayoutPanel1.TabIndex = 13;
             // 
             // airCheckBox2
@@ -92,7 +92,7 @@
             airCheckBox2.Dock = DockStyle.Fill;
             airCheckBox2.Font = new Font("Segoe UI", 9.75F);
             airCheckBox2.Image = null;
-            airCheckBox2.Location = new Point(3, 29);
+            airCheckBox2.Location = new Point(3, 33);
             airCheckBox2.Name = "airCheckBox2";
             airCheckBox2.NoRounding = false;
             airCheckBox2.Size = new Size(278, 17);
@@ -104,7 +104,7 @@
             // airCheckBox1
             // 
             airCheckBox1.AccessibleDescription = "Позволяет пользоваться программой без подписки Яндекс Плюс";
-            airCheckBox1.BackColor = Color.WhiteSmoke;
+            airCheckBox1.BackColor = Color.White;
             airCheckBox1.Checked = false;
             airCheckBox1.Customization = "7e3t//Ly8v/r6+v/5ubm/+vr6//f39//p6en/zw8PP8=";
             airCheckBox1.Dock = DockStyle.Fill;
@@ -127,7 +127,7 @@
             airCheckBox5.Dock = DockStyle.Fill;
             airCheckBox5.Font = new Font("Segoe UI", 9.75F);
             airCheckBox5.Image = null;
-            airCheckBox5.Location = new Point(3, 55);
+            airCheckBox5.Location = new Point(3, 63);
             airCheckBox5.Name = "airCheckBox5";
             airCheckBox5.NoRounding = false;
             airCheckBox5.Size = new Size(278, 17);
@@ -194,7 +194,7 @@
             button3.Name = "button3";
             button3.PressedBorderColor = Color.FromArgb(15, 15, 15);
             button3.PressedColor = Color.FromArgb(15, 15, 15);
-            button3.Size = new Size(118, 28);
+            button3.Size = new Size(128, 34);
             button3.TabIndex = 19;
             button3.Text = "Сообщить об ошибке  ";
             button3.TextAlignment = StringAlignment.Far;

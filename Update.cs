@@ -21,7 +21,7 @@ namespace YandexMusicPatcherGui
                 httpClientHandler.AllowAutoRedirect = false;
                 var client = new HttpClient(httpClientHandler);
                 var request = new HttpRequestMessage(HttpMethod.Get,
-                    "https://github.com/Stephanzion/YandexMusicBetaMod/releases/latest");
+                    "https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest");
                 var response = await client.SendAsync(request);
                 var redirectUrl = response.Headers.Location.ToString();
                 var lastVersion = redirectUrl.Split('/').Last().Replace("v", "");

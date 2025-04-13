@@ -131,7 +131,7 @@ namespace YandexMusicPatcherGui
                             Process myProcess = new Process();
                             myProcess.StartInfo.UseShellExecute = true;
                             myProcess.StartInfo.FileName =
-                                "https://github.com/Stephanzion/YandexMusicBetaMod/releases/latest";
+                                "https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest";
                             myProcess.Start();
                         }
                     }
