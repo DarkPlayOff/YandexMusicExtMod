@@ -66,7 +66,6 @@ namespace YandexMusicPatcherGui
                 checkbox.MouseEnter += (s, e) =>
                 {
                     var checkbox = (ReaLTaiizor.Controls.AirCheckBox)s;
-                    label2.Text = checkbox.AccessibleDescription;
                     _mouseInCheckbox = true;
                 };
                 checkbox.MouseLeave += (s, e) => { _mouseInCheckbox = false; };
@@ -90,13 +89,6 @@ namespace YandexMusicPatcherGui
                         JsonConvert.SerializeObject(Program.Config, Formatting.Indented));
                 };
             }
-
-            MouseMove += (s, e) =>
-            {
-                if (!_mouseInCheckbox) label2.Text = "Наведите мышкой на мод чтобы узнать подробности";
-            };
-
-            UpdateButtonsState();
         }
 
         private void UpdateButtonsState()

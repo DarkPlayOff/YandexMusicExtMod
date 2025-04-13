@@ -140,7 +140,7 @@ namespace YandexMusicPatcherGui
 
             var musicS3 = "https://music-desktop-application.s3.yandex.net";
 
-            Onlog?.Invoke("Patcher", $"Получаю последний билд Музыки...");
+            Onlog?.Invoke("Patcher", $"Получаю последний билд Яндекс Музыки...");
 
             var webClient = new WebClient();
             var yamlRaw = webClient.DownloadString($"{musicS3}/stable/latest.yml");
@@ -152,7 +152,7 @@ namespace YandexMusicPatcherGui
             var lastest = deserializer.Deserialize<dynamic>(yamlRaw);
             var lastestUrl = $"{musicS3}/stable/{(string)lastest["path"]}";
 
-            Onlog?.Invoke("Patcher", $"Ссылка получена, скачиваю Музыку...");
+            Onlog?.Invoke("Patcher", $"Ссылка получена, скачиваю билд...");
 
             webClient.DownloadFile(lastestUrl, "temp/stable.exe");
 
@@ -169,9 +169,9 @@ namespace YandexMusicPatcherGui
             process.Start();
             await process.WaitForExitAsync();
 
-            Onlog?.Invoke("Patcher", $"Распаковано");
+            Onlog?.Invoke("Patcher", $"Успешно распаковано");
 
-            Directory.Delete("temp", true);
+            /// Directory.Delete("temp", false);
         }
 
 
@@ -182,21 +182,53 @@ namespace YandexMusicPatcherGui
             /// </summary>
             public static async Task Unpack(string asarPath, string destPath)
             {
-                Onlog?.Invoke("Patcher", $"Распаковка asar...");
+                Onlog?.Invoke("Patcher", "Загрузка файла app.asar...");
 
-                var processStartInfo = new ProcessStartInfo("7zip\\7z.exe");
-                processStartInfo.Arguments = $"x \"{Path.GetFullPath(asarPath)}\" -o{destPath} -y";
-                processStartInfo.RedirectStandardInput = true;
-                processStartInfo.RedirectStandardOutput = true;
-                processStartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                processStartInfo.UseShellExecute = false;
-                processStartInfo.CreateNoWindow = true;
+                // Создаем временную директорию для скачанного файла
+                string tempFolder = Path.GetFullPath("temp");
+                Directory.CreateDirectory(tempFolder);
+                string downloadedFile = Path.Combine(tempFolder, "app.asar");
+
+                // Загрузка файла с GitHub с использованием потокового копирования
+                string downloadUrl = "https://github.com/TheKing-OfTime/YandexMusicModClient/releases/latest/download/app.asar";
+                try
+                {
+                    using (HttpClient client = new HttpClient())
+                    using (HttpResponseMessage response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                    {
+                        response.EnsureSuccessStatusCode();
+                        using (var stream = await response.Content.ReadAsStreamAsync())
+                        using (var fileStream = new FileStream(downloadedFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
+                        {
+                            await stream.CopyToAsync(fileStream);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Onlog?.Invoke("Patcher", $"Ошибка загрузки app.asar: {ex.Message}");
+                    throw;
+                }
+
+                Onlog?.Invoke("Patcher", "Файл загружен, распаковка asar...");
+
+                var processStartInfo = new ProcessStartInfo("7zip\\7z.exe")
+                {
+                    Arguments = $"x \"{Path.GetFullPath(downloadedFile)}\" -o{destPath} -y",
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
                 var process = new Process() { StartInfo = processStartInfo };
                 process.Start();
                 await process.WaitForExitAsync();
 
-                Onlog?.Invoke("Patcher", $"Распаковано");
+                Onlog?.Invoke("Patcher", "Распаковано");
             }
+
 
             /// <summary>
             /// Запаковывает app.asar
@@ -218,6 +250,7 @@ namespace YandexMusicPatcherGui
                 await process.WaitForExitAsync();
 
                 Onlog?.Invoke("Patcher", $"Упаковано");
+                Directory.Delete("temp", true);
             }
         }
     }
