@@ -16,7 +16,7 @@
 
 📃 Возможность поменять шрифты на моноширинные
 
-## ✨Функции из https://github.com/TheKing-OfTime/YandexMusicModClient:
+## ✨Функции из [другого репозитория](https://github.com/TheKing-OfTime/YandexMusicModClient):
 ### Discord Статус
 <details>
    <summary>Подробнее</summary>
