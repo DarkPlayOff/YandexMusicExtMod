@@ -8,12 +8,11 @@ namespace YandexMusicPatcherGui
         [STAThread]
         static void Main()
         {
-            ApplicationConfiguration.Initialize();
-            Application.Run(new Main());
+            new System.Windows.Application().Run(new Main());
         }
 
         public static Models.Config Config = null;
         public const string ModPath = "YandexMusic";
-        public const string Version = "2.0.7.0";
+        public const string Version = "2.0.7.1";
     }
 }

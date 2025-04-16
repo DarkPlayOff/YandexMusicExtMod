@@ -12,9 +12,9 @@
             };
 
             config.Mods.Add(new("usePlusUnlocker", true));
-            config.Mods.Add(new("discordRPC", true));
+            config.Mods.Add(new("discordRPC", false));
             config.Mods.Add(new("disableTracking", true));
-            config.Mods.Add(new("useDownloader", true));
+            config.Mods.Add(new("useDownloader", false));
             config.Mods.Add(new("useJetBrainsFont", false));
             config.Mods.Add(new("useDevTools", false));
 

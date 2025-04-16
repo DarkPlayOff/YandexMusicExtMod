@@ -59,15 +59,5 @@ namespace YandexMusicPatcherGui.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap github_mark {
-            get {
-                object obj = ResourceManager.GetObject("github-mark", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
     }
 }

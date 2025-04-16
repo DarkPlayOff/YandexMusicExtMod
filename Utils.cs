@@ -1,6 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
-using static YandexMusicPatcherGui.Program;
 
 namespace YandexMusicPatcherGui
 {

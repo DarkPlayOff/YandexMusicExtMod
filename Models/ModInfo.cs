@@ -10,5 +10,6 @@
 
         public string Tag { get; set; }
         public bool Enabled { get; set; }
+        public object Name { get; internal set; }
     }
 }

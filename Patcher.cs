@@ -1,15 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
+using Newtonsoft.Json;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using YandexMusicPatcherGui.Models;
 
 namespace YandexMusicPatcherGui
 {
@@ -38,7 +32,7 @@ namespace YandexMusicPatcherGui
         /// <summary>
         /// Устанавливает моды. Копирует js моды в папку ресурсов приложeния а также патчит некоторые существующие js файлы
         /// </summary>
-        public static async Task InstallMods(string appPath)
+        public static void InstallMods(string appPath)
         {
             Onlog?.Invoke("Patcher", $"Копирую моды...");
 
@@ -60,27 +54,6 @@ namespace YandexMusicPatcherGui
                     "createWindow_js_1.createWindow)();",
                     "createWindow_js_1.createWindow)();\n\n" + File.ReadAllText("mods/inject/_appIndex.js"));
 
-            // Установка интеграции с дискордом
-            if (Program.Config.HasMod("discordRPC"))
-            {
-                ReplaceFileContents(Path.Combine(appPath, "main/index.js"),
-                  "createWindow_js_1.createWindow)();",
-                  "createWindow_js_1.createWindow)();\n\n" + File.ReadAllText("mods/inject/discordRPC.js"));
-
-                Onlog?.Invoke("Patcher", "Устанавливаю зависимости для интеграции с discord");
-              
-                var processStartInfo = new ProcessStartInfo("7zip\\7z.exe");
-                processStartInfo.Arguments = $"x \"{Path.GetFullPath("mods/DiscordRPC/Lib/node_modules.zip")}\" -o{Path.Combine(appPath, "node_modules")} -y";
-                processStartInfo.RedirectStandardInput = true;
-                processStartInfo.RedirectStandardOutput = true;
-                processStartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                processStartInfo.UseShellExecute = false;
-                processStartInfo.CreateNoWindow = true;
-                var process = new Process() { StartInfo = processStartInfo };
-                process.Start();
-                await process.WaitForExitAsync();
-
-            }
 
             // Добавить _appPreload.js в исходный preload.js приложения
             File.WriteAllText(Path.Combine(appPath, "main/lib/preload.js"),
@@ -102,16 +75,6 @@ namespace YandexMusicPatcherGui
                         $"if ({Program.Config.HasMod("useDevTools").ToString().ToLower()})")
                     .Replace("if (config_js_1.config.enableDevTools)",
                         $"if ({Program.Config.HasMod("useDevTools").ToString().ToLower()})")
-            );
-
-            // включить консоль разработчика, отключить CORS, отключить автообновления
-            File.WriteAllText(Path.Combine(appPath, "main/config.js"),
-                File.ReadAllText(Path.Combine(appPath, "main/config.js"))
-                    .Replace("enableDevTools: false",
-                        $"enableDevTools: {Program.Config.HasMod("useDevTools").ToString().ToLower()}")
-                    .Replace("enableWebSecurity: true", "enableWebSecurity: false")
-                    .Replace("enableAutoUpdate: true", "enableAutoUpdate: false")
-                    .Replace("bypassCSP: false", "bypassCSP: true")
             );
 
             // включить системную рамку окна
@@ -142,8 +105,11 @@ namespace YandexMusicPatcherGui
 
             Onlog?.Invoke("Patcher", $"Получаю последний билд Яндекс Музыки...");
 
-            var webClient = new WebClient();
-            var yamlRaw = webClient.DownloadString($"{musicS3}/stable/latest.yml");
+            var yamlRaw = string.Empty;
+            using (var httpClient = new HttpClient())
+            {
+                yamlRaw = await httpClient.GetStringAsync($"{musicS3}/stable/latest.yml");
+            }
 
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(UnderscoredNamingConvention.Instance)
@@ -154,7 +120,17 @@ namespace YandexMusicPatcherGui
 
             Onlog?.Invoke("Patcher", $"Ссылка получена, скачиваю билд...");
 
-            webClient.DownloadFile(lastestUrl, "temp/stable.exe");
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.GetAsync(lastestUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                using (var stream = await response.Content.ReadAsStreamAsync())
+                using (var fileStream = new FileStream("temp/stable.exe", FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
+                {
+                    await stream.CopyToAsync(fileStream);
+                }
+            }
 
             Onlog?.Invoke("Patcher", $"Распаковка...");
 
@@ -170,8 +146,6 @@ namespace YandexMusicPatcherGui
             await process.WaitForExitAsync();
 
             Onlog?.Invoke("Patcher", $"Успешно распаковано");
-
-            /// Directory.Delete("temp", false);
         }
 
 
