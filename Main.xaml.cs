@@ -33,7 +33,6 @@ namespace YandexMusicPatcherGui
             AnimateWindowIn();
         }
 
-
         #region Acrylic Blur
 
         [DllImport("user32.dll")]
@@ -71,26 +70,31 @@ namespace YandexMusicPatcherGui
             };
             int size = Marshal.SizeOf(accent);
             IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(accent, ptr, false);
-
-            var data = new WindowCompositionAttributeData
+            try
             {
-                Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY,
-                SizeOfData = size,
-                Data = ptr
-            };
-            SetWindowCompositionAttribute(helper.Handle, ref data);
-            Marshal.FreeHGlobal(ptr);
+                Marshal.StructureToPtr(accent, ptr, false);
+                var data = new WindowCompositionAttributeData
+                {
+                    Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY,
+                    SizeOfData = size,
+                    Data = ptr
+                };
+                SetWindowCompositionAttribute(helper.Handle, ref data);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
         }
 
         #endregion
-
 
         #region Конфигурация
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             AnimateWindowOutAndClose();
         }
+
         private void InitConfig()
         {
             // Создать дефолт, если нет
@@ -141,18 +145,22 @@ namespace YandexMusicPatcherGui
             try
             {
                 Log("Начинаем установку...");
-                Process.GetProcessesByName("Яндекс Музыка")
-                       .ToList().ForEach(p => p.Kill());
+                foreach (var p in Process.GetProcessesByName("Яндекс Музыка"))
+                {
+                    p.Kill();
+                }
 
                 await Task.Delay(500);
                 if (Directory.Exists("temp")) Directory.Delete("temp", true);
                 if (Directory.Exists(Program.ModPath)) Directory.Delete(Program.ModPath, true);
 
                 await Patcher.DownloadLastestMusic();
-                await Patcher.Asar.Unpack($"{Program.ModPath}/resources/app.asar", $"{Program.ModPath}/resources/app");
-                File.Delete($"{Program.ModPath}/resources/app.asar");
-                Patcher.InstallMods($"{Program.ModPath}/resources/app");
-                await Patcher.Asar.Pack($"{Program.ModPath}/resources/app/*", $"{Program.ModPath}/resources/app.asar");
+                await Patcher.Asar.Unpack(Path.Combine(Program.ModPath, "resources", "app.asar"),
+                                             Path.Combine(Program.ModPath, "resources", "app"));
+                File.Delete(Path.Combine(Program.ModPath, "resources", "app.asar"));
+                Patcher.InstallMods(Path.Combine(Program.ModPath, "resources", "app"));
+                await Patcher.Asar.Pack(Path.Combine(Program.ModPath, "resources", "app", "*"),
+                                        Path.Combine(Program.ModPath, "resources", "app.asar"));
 
                 Utils.CreateDesktopShortcut("Яндекс Музыка",
                     Path.Combine(Program.ModPath, "Яндекс Музыка.exe"));
@@ -198,7 +206,7 @@ namespace YandexMusicPatcherGui
         private async Task CheckForUpdates()
         {
             var version = await Update.GetLastVersion();
-            if (!string.IsNullOrEmpty(version) && version != "error" && version != Program.Version)
+            if (!string.IsNullOrWhiteSpace(version) && version != "error" && version != Program.Version)
             {
                 var res = MessageBox.Show($"Доступно обновление v{version}!\nСкачать?", "Обновление",
                     MessageBoxButton.OKCancel, MessageBoxImage.Question);
@@ -245,6 +253,7 @@ namespace YandexMusicPatcherGui
         #endregion
 
         #region Анимация закрытия окна
+
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
@@ -261,6 +270,7 @@ namespace YandexMusicPatcherGui
             sb.Children.Add(fade);
             sb.Begin();
         }
+
         #endregion
     }
 }
