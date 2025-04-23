@@ -11,7 +11,6 @@ using YandexMusicPatcherGui.Models;
 
 namespace YandexMusicPatcherGui
 {
-
     public partial class Main : Window
     {
         private static TextBox _LogTextBox;
@@ -162,8 +161,22 @@ namespace YandexMusicPatcherGui
                 await Patcher.Asar.Pack(Path.Combine(Program.ModPath, "resources", "app", "*"),
                                         Path.Combine(Program.ModPath, "resources", "app.asar"));
 
+                // ѕеремещение папки YandexMusic в %localappdata%/Programs/
+                string programsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
+                // —оздаем родительскую папку, если еЄ нет
+                if (!Directory.Exists(programsDir))
+                {
+                    Directory.CreateDirectory(programsDir);
+                }
+                string targetPath = Path.Combine(programsDir, "YandexMusic");
+                if (Directory.Exists(targetPath))
+                {
+                    Directory.Delete(targetPath, true);
+                }
+                Directory.Move(Program.ModPath, targetPath);
+
                 Utils.CreateDesktopShortcut("яндекс ћузыка",
-                    Path.Combine(Program.ModPath, "яндекс ћузыка.exe"));
+                    Path.Combine(targetPath, "яндекс ћузыка.exe"));
 
                 Log("√отово! ярлык создан на рабочем столе.");
             }
@@ -182,7 +195,17 @@ namespace YandexMusicPatcherGui
         {
             try
             {
-                Process.Start(Path.Combine(Program.ModPath, "яндекс ћузыка.exe"));
+                string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "YandexMusic");
+                string exePath = Path.Combine(targetPath, "яндекс ћузыка.exe");
+
+                // ѕроверка наличи€ яндекс ћузыки в целевой папке
+                if (!File.Exists(exePath))
+                {
+                    Log($"ќшибка: ‘айл '{exePath}' не найден, установи мод");
+                    return;
+                }
+
+                Process.Start(exePath);
             }
             catch (Exception ex)
             {
@@ -220,6 +243,7 @@ namespace YandexMusicPatcherGui
                 }
             }
         }
+
         #endregion
 
         private void UpdateButtonsState()

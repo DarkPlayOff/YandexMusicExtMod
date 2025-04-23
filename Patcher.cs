@@ -14,19 +14,21 @@ namespace YandexMusicPatcherGui
         private static readonly HttpClient httpClient = new HttpClient();
 
         /// <summary>
-        /// Проверяет, установлен ли мод
+        /// Проверяет установлен ли мод
         /// </summary>
         public static bool IsModInstalled()
         {
-            if (!Directory.Exists(Program.ModPath))
+            string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "YandexMusic");
+
+            if (!Directory.Exists(targetPath))
                 return false;
 
             var filesToCheck = new string[]
             {
-                    "Яндекс Музыка.exe",
-                    "resources/app.asar"
+        "Яндекс Музыка.exe",
+        "resources/app.asar"
             }
-            .Select(x => Path.GetFullPath(Path.Combine(Program.ModPath, x)));
+            .Select(x => Path.GetFullPath(Path.Combine(targetPath, x)));
 
             return filesToCheck.All(File.Exists);
         }
