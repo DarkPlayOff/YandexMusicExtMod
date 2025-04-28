@@ -251,3 +251,9 @@ Devtools по умолчанию отключены. Чтобы включить
 Если у вас что-то не работает, пожалуйста, [создавайте issue](https://github.com/DarkPlayOff/YandexMusicExtMod/issues) и подробно опишите суть ошибки и шаги по ее воспроизведению. Стараюсь оперативно отвечать и фиксить.
 
 Если у вас есть идеи того, что можно реализовать или вы написали свой мод, который можно добавить в патчер - [пишите туда же](https://github.com/DarkPlayOff/YandexMusicExtMod/issues).
+
+
+## ✨Благодарности
+ • [Stephanzion](https://github.com/Stephanzion) за оригинальный патчер для плюса
+ 
+ • [TheKing-OfTime](https://github.com/TheKing-OfTime) за модификацию Яндекс Музыки
