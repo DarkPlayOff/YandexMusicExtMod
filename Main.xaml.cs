@@ -161,6 +161,13 @@ namespace YandexMusicPatcherGui
                 await Patcher.Asar.Pack(Path.Combine(Program.ModPath, "resources", "app", "*"),
                                         Path.Combine(Program.ModPath, "resources", "app.asar"));
 
+                // Удаление папки app в YandexMusic/resources
+                string appFolderPath = Path.Combine(Program.ModPath, "resources", "app");
+                if (Directory.Exists(appFolderPath))
+                {
+                    Directory.Delete(appFolderPath, true);
+                }
+
                 // Перемещение папки YandexMusic в %localappdata%/Programs/
                 string programsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
                 // Создаем родительскую папку, если её нет
@@ -190,6 +197,7 @@ namespace YandexMusicPatcherGui
                 UpdateButtonsState();
             }
         }
+
 
         private void RunButton_Click(object sender, RoutedEventArgs e)
         {

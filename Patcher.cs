@@ -4,6 +4,7 @@ using System.Net.Http;
 using Newtonsoft.Json;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using System.IO.Compression;
 
 namespace YandexMusicPatcherGui
 {
@@ -158,27 +159,20 @@ namespace YandexMusicPatcherGui
 
         public static class Asar
         {
-            /// <summary>
-            /// Распаковывает app.asar
-            /// </summary>
             public static async Task Unpack(string asarPath, string destPath)
             {
-                Onlog?.Invoke("Patcher", "Загрузка файла app.asar...");
+                Onlog?.Invoke("Patcher", "Загрузка архива app.asar.gz...");
 
-                // Создаем временную директорию для скачанного файла
                 string tempFolder = Path.GetFullPath("temp");
-                Directory.CreateDirectory(tempFolder);
-                string downloadedFile = Path.Combine(tempFolder, "app.asar");
-
-                // Загрузка файла с GitHub с использованием потокового копирования
-                string downloadUrl = "https://github.com/TheKing-OfTime/YandexMusicModClient/releases/latest/download/app.asar";
+                string downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
+                string downloadUrl = "https://github.com/TheKing-OfTime/YandexMusicModClient/releases/latest/download/app.asar.gz";
                 try
                 {
                     using (var response = await httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
                     {
                         response.EnsureSuccessStatusCode();
                         using (var stream = await response.Content.ReadAsStreamAsync())
-                        using (var fileStream = new FileStream(downloadedFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
+                        using (var fileStream = new FileStream(downloadedGzFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
                         {
                             await stream.CopyToAsync(fileStream);
                         }
@@ -186,15 +180,24 @@ namespace YandexMusicPatcherGui
                 }
                 catch (Exception ex)
                 {
-                    Onlog?.Invoke("Patcher", $"Ошибка загрузки app.asar: {ex.Message}");
+                    Onlog?.Invoke("Patcher", $"Ошибка загрузки app.asar.gz: {ex.Message}");
                     throw;
                 }
 
-                Onlog?.Invoke("Patcher", "Файл загружен, распаковка asar...");
+                Onlog?.Invoke("Patcher", "Архив загружен, распаковка gzip...");
+                string decompressedAsarFile = Path.Combine(tempFolder, "app.asar");
+                using (var originalFileStream = new FileStream(downloadedGzFile, FileMode.Open, FileAccess.Read))
+                using (var decompressedFileStream = new FileStream(decompressedAsarFile, FileMode.Create, FileAccess.Write))
+                using (var decompressionStream = new GZipStream(originalFileStream, CompressionMode.Decompress))
+                {
+                    await decompressionStream.CopyToAsync(decompressedFileStream);
+                }
+
+                Onlog?.Invoke("Patcher", "gzip распакован, распаковка asar...");
 
                 var processStartInfo = new ProcessStartInfo(Path.GetFullPath("7zip\\7z.exe"))
                 {
-                    Arguments = $"x \"{Path.GetFullPath(downloadedFile)}\" -o{destPath} -y",
+                    Arguments = $"x \"{Path.GetFullPath(decompressedAsarFile)}\" -o{destPath} -y",
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,
                     WindowStyle = ProcessWindowStyle.Hidden,

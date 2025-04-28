@@ -2,7 +2,7 @@
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <TargetFramework>net9.0-windows10.0.17763.0</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>False</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -13,6 +13,11 @@
     <UseWPF>True</UseWPF>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <NoWin32Manifest>true</NoWin32Manifest>
+    <SignAssembly>False</SignAssembly>
+    <AssemblyVersion>2.0.7.3</AssemblyVersion>
+    <FileVersion>2.0.7.3</FileVersion>
+    <PackageProjectUrl>https://github.com/DarkPlayOff/YandexMusicExtMod</PackageProjectUrl>
+    <Description>Патчер для Яндекс Музыки</Description>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
