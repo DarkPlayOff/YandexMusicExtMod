@@ -1,16 +1,15 @@
 ﻿using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
-using Newtonsoft.Json;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using System.IO.Compression;
 
 namespace YandexMusicPatcherGui
 {
     public static class Patcher
     {
-        public static event EventHandler<string> Onlog;
+        public static event EventHandler<(int Progress, string Status)> OnDownloadProgress;
 
         private static readonly HttpClient httpClient = new HttpClient();
 
@@ -19,15 +18,15 @@ namespace YandexMusicPatcherGui
         /// </summary>
         public static bool IsModInstalled()
         {
-            string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "YandexMusic");
+            string targetPath = Path.Combine(Program.ModPath);
 
             if (!Directory.Exists(targetPath))
                 return false;
 
             var filesToCheck = new string[]
             {
-        "Яндекс Музыка.exe",
-        "resources/app.asar"
+                "Яндекс Музыка.exe",
+                "resources/app.asar"
             }
             .Select(x => Path.GetFullPath(Path.Combine(targetPath, x)));
 
@@ -39,33 +38,26 @@ namespace YandexMusicPatcherGui
         /// </summary>
         public static void InstallMods(string appPath)
         {
-            Onlog?.Invoke("Patcher", "Копирую моды...");
+            OnDownloadProgress?.Invoke("Patcher", (0, "Копирование модов..."));
 
             var newModsPath = Path.GetFullPath(Path.Combine(appPath, "app/_next/static/yandex_mod"));
             Utils.CopyFilesRecursively(Path.GetFullPath("mods"), newModsPath);
 
-            Onlog?.Invoke("Patcher", "Устанавливаю моды...");
+            OnDownloadProgress?.Invoke("Patcher", (50, "Установка модов..."));
 
             // Вставить конфиг патчера в скрипт инициализации патчера в приложении
             ReplaceFileContents(
                 Path.Combine(newModsPath, "index.js"),
                 "//%PATCHER_CONFIG_OVERRIDE%",
-                "modConfig = " +
-                JsonConvert.SerializeObject(Program.Config.Mods.ToDictionary(x => x.Tag, x => x.Enabled),
-                    Formatting.Indented));
+                File.ReadAllText(Path.Combine("mods", "index.js")));
 
             // Добавить _appIndex.js в исходный index.js приложения
-            if (Program.Config.HasMod("disableTracking"))
-                ReplaceFileContents(
-                    Path.Combine(appPath, "main/index.js"),
-                    "createWindow_js_1.createWindow)();",
-                    "createWindow_js_1.createWindow)();\n\n" + File.ReadAllText("mods/inject/_appIndex.js"));
+            ReplaceFileContents(
+                Path.Combine(appPath, "main/index.js"),
+                "createWindow_js_1.createWindow)();",
+                "createWindow_js_1.createWindow)();\n\n" + File.ReadAllText("mods/inject/_appIndex.js"));
 
-            // Добавить _appPreload.js в исходный preload.js приложения
-            var preloadPath = Path.Combine(appPath, "main/lib/preload.js");
-            File.WriteAllText(preloadPath, File.ReadAllText(preloadPath) + File.ReadAllText("mods/inject/_appPreload.js"));
-
-            // Ручной инжект инициализатора модов в html страницы, тк электроновский preload скрипт не всегда работает
+            // Ручной инжект инициализатора модов в html страницы
             var htmlFiles = Directory.GetFiles(Path.Combine(appPath, "app"), "*.html", SearchOption.AllDirectories);
             var injectHtml = File.ReadAllText("mods/inject/_appIndexHtml.js");
             foreach (var file in htmlFiles)
@@ -76,32 +68,20 @@ namespace YandexMusicPatcherGui
                 File.WriteAllText(file, content);
             }
 
-            // Включить верхнее меню
-            var systemMenuPath = Path.Combine(appPath, "main/lib/systemMenu.js");
-            var menuContent = File.ReadAllText(systemMenuPath)
-                .Replace("if (node_os_1.default.platform() === platform_js_1.Platform.MACOS)",
-                    $"if ({Program.Config.HasMod("useDevTools").ToString().ToLower()})")
-                .Replace("if (config_js_1.config.enableDevTools)",
-                    $"if ({Program.Config.HasMod("useDevTools").ToString().ToLower()})");
-            File.WriteAllText(systemMenuPath, menuContent);
-
-            // Включить системную рамку окна
-            if (Program.Config.HasMod("useDevTools"))
-            {
-                var createWindowPath = Path.Combine(appPath, "main/lib/createWindow.js");
-                File.WriteAllText(createWindowPath,
-                    File.ReadAllText(createWindowPath).Replace("titleBarStyle: 'hidden',", "//titleBarStyle: 'hidden',"));
-            }
-
             // Удалить видео-заставку
             Directory.Delete(Path.Combine(appPath, "app/media/splash_screen"), true);
 
-            Onlog?.Invoke("Patcher", "Моды установлены");
+            OnDownloadProgress?.Invoke("Patcher", (100, "Установка модов завершена"));
         }
 
         private static void ReplaceFileContents(string path, string replace, string replaceTo)
         {
-            File.WriteAllText(path, File.ReadAllText(path).Replace(replace, replaceTo));
+            string content = File.ReadAllText(path);
+            if (!content.Contains(replace))
+            {
+            }
+
+            string newContent = content.Replace(replace, replaceTo);
         }
 
         /// <summary>
@@ -113,7 +93,7 @@ namespace YandexMusicPatcherGui
 
             var musicS3 = "https://music-desktop-application.s3.yandex.net";
 
-            Onlog?.Invoke("Patcher", "Получаю последний билд Яндекс Музыки...");
+            OnDownloadProgress?.Invoke("Patcher", (0, "Получение информации о последней версии..."));
 
             var yamlRaw = await httpClient.GetStringAsync($"{musicS3}/stable/latest.yml");
 
@@ -124,20 +104,34 @@ namespace YandexMusicPatcherGui
             var lastest = deserializer.Deserialize<dynamic>(yamlRaw);
             var lastestUrl = $"{musicS3}/stable/{(string)lastest["path"]}";
 
-            Onlog?.Invoke("Patcher", "Ссылка получена, скачиваю билд...");
+            OnDownloadProgress?.Invoke("Patcher", (0, "Начало скачивания..."));
 
             using (var response = await httpClient.GetAsync(lastestUrl, HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
+                var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                var readBytes = 0L;
 
                 using (var stream = await response.Content.ReadAsStreamAsync())
                 using (var fileStream = new FileStream("temp/stable.exe", FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
                 {
-                    await stream.CopyToAsync(fileStream);
+                    var buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                        readBytes += bytesRead;
+
+                        if (totalBytes != -1)
+                        {
+                            var progress = (int)((readBytes * 100) / totalBytes);
+                            OnDownloadProgress?.Invoke("Patcher", (progress, $"Скачивание клиента: {progress}%"));
+                        }
+                    }
                 }
             }
 
-            Onlog?.Invoke("Patcher", "Распаковка...");
+            OnDownloadProgress?.Invoke("Patcher", (-1, "Распаковка клиента..."));
 
             var processStartInfo = new ProcessStartInfo(Path.GetFullPath("7zip\\7za.exe"))
             {
@@ -154,15 +148,13 @@ namespace YandexMusicPatcherGui
                 await process.WaitForExitAsync();
             }
 
-            Onlog?.Invoke("Patcher", "Успешно распаковано");
+            OnDownloadProgress?.Invoke("Patcher", (100, "Успешно распаковано!"));
         }
 
         public static class Asar
         {
             public static async Task Unpack(string asarPath, string destPath)
             {
-                Onlog?.Invoke("Patcher", "Загрузка архива app.asar.gz...");
-
                 string tempFolder = Path.GetFullPath("temp");
                 string downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
                 string downloadUrl = "https://github.com/TheKing-OfTime/YandexMusicModClient/releases/latest/download/app.asar.gz";
@@ -171,20 +163,35 @@ namespace YandexMusicPatcherGui
                     using (var response = await httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
                     {
                         response.EnsureSuccessStatusCode();
+                        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                        var readBytes = 0L;
+
                         using (var stream = await response.Content.ReadAsStreamAsync())
                         using (var fileStream = new FileStream(downloadedGzFile, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
                         {
-                            await stream.CopyToAsync(fileStream);
+                            var buffer = new byte[8192];
+                            int bytesRead;
+                            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                            {
+                                await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                readBytes += bytesRead;
+
+                                if (totalBytes != -1)
+                                {
+                                    var progress = (int)((readBytes * 100) / totalBytes);
+                                    OnDownloadProgress?.Invoke("Patcher", (progress, $"Загрузка мода: {progress}%"));
+                                }
+                            }
                         }
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Onlog?.Invoke("Patcher", $"Ошибка загрузки app.asar.gz: {ex.Message}");
                     throw;
                 }
 
-                Onlog?.Invoke("Patcher", "Архив загружен, распаковка gzip...");
+                OnDownloadProgress?.Invoke("Patcher", (-1, "Распаковка gzip..."));
+
                 string decompressedAsarFile = Path.Combine(tempFolder, "app.asar");
                 using (var originalFileStream = new FileStream(downloadedGzFile, FileMode.Open, FileAccess.Read))
                 using (var decompressedFileStream = new FileStream(decompressedAsarFile, FileMode.Create, FileAccess.Write))
@@ -193,7 +200,7 @@ namespace YandexMusicPatcherGui
                     await decompressionStream.CopyToAsync(decompressedFileStream);
                 }
 
-                Onlog?.Invoke("Patcher", "gzip распакован, распаковка asar...");
+                OnDownloadProgress?.Invoke("Patcher", (-1, "Распаковка asar..."));
 
                 var processStartInfo = new ProcessStartInfo(Path.GetFullPath("7zip\\7z.exe"))
                 {
@@ -211,15 +218,13 @@ namespace YandexMusicPatcherGui
                     await process.WaitForExitAsync();
                 }
 
-                Onlog?.Invoke("Patcher", "Распаковано");
+                OnDownloadProgress?.Invoke("Patcher", (100, "Распаковка завершена"));
             }
 
-            /// <summary>
             /// Запаковывает app.asar
-            /// </summary>
             public static async Task Pack(string asarFolderPath, string destPath)
             {
-                Onlog?.Invoke("Patcher", "Упаковываю обратно asar...");
+                OnDownloadProgress?.Invoke("Patcher", (-1, "Упаковка asar..."));
 
                 var processStartInfo = new ProcessStartInfo(Path.GetFullPath("7zip\\7z.exe"))
                 {
@@ -237,7 +242,7 @@ namespace YandexMusicPatcherGui
                     await process.WaitForExitAsync();
                 }
 
-                Onlog?.Invoke("Patcher", "Упаковано");
+                OnDownloadProgress?.Invoke("Patcher", (100, "Установка завершена!"));
                 Directory.Delete("temp", true);
             }
         }

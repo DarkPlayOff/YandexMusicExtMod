@@ -4,10 +4,7 @@ console.log("\n[Yandex Mod] Source code: https://github.com/Stephanzion/YandexMu
 // Скрипт загружает файлы мода исходя из конфига, выбранного в патчере
 (async function () {
   var modConfig = {
-    usePlusUnlocker: false,
-    useDownloader: false,
-    useJetBrainsFont: false,
-    useDevTools: true,
+    usePlusUnlocker: true,
   };
 
   //%PATCHER_CONFIG_OVERRIDE%
@@ -20,20 +17,6 @@ console.log("\n[Yandex Mod] Source code: https://github.com/Stephanzion/YandexMu
   if (modConfig.usePlusUnlocker) {
     modScripts.push("/_next/static/yandex_mod/plusUnlocker/index.js");
   }
-  if (modConfig.useDownloader) {
-    modStyles.push("/_next/static/yandex_mod/downloader/index.css");
-    modScripts.push("/_next/static/yandex_mod/downloader/api.js");
-    modScripts.push("/_next/static/yandex_mod/downloader/index.js");
-    modScripts.push("/_next/static/yandex_mod/downloader/album.js");
-  }
-  if (modConfig.useJetBrainsFont) {
-    modStyles.push("/_next/static/yandex_mod/jetbrains/index.css");
-  }
-  if (modConfig.useDevTools) {
-    modStyles.push("/_next/static/yandex_mod/topbar/index.css");
-  }
-
-  modScripts.push("/_next/static/yandex_mod/experiments/index.js");
 
   modStyles = [...new Set(modStyles)];
   modScripts = [...new Set(modScripts)];

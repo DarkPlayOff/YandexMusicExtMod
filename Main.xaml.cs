@@ -1,35 +1,47 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
-using Newtonsoft.Json;
-using YandexMusicPatcherGui.Models;
+using System.Windows.Threading;
 
 namespace YandexMusicPatcherGui
 {
+    public class ProgressToWidthConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values.Length == 2 && values[0] is double progress && values[1] is double width)
+            {
+                return (progress / 100.0) * width;
+            }
+            return 0.0;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public partial class Main : Window
     {
-        private static TextBox _LogTextBox;
-
         public Main()
         {
             InitializeComponent();
-            _LogTextBox = LogBox;
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            AnimateWindowIn();
             EnableBlur();
-            InitConfig();
             SubscribeToPatcherLog();
             UpdateButtonsState();
-            _ = CheckForUpdates();
-            Log("Запуск...");
-            AnimateWindowIn();
+            await CheckForUpdates();
         }
 
         #region Acrylic Blur
@@ -64,7 +76,7 @@ namespace YandexMusicPatcherGui
             {
                 AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND,
                 AccentFlags = 0,
-                GradientColor = unchecked((int)0x99000000), // 60% прозрачный чёрный
+                GradientColor = unchecked((int)0x400000000),
                 AnimationId = 0
             };
             int size = Marshal.SizeOf(accent);
@@ -88,188 +100,238 @@ namespace YandexMusicPatcherGui
 
         #endregion
 
-        #region Конфигурация
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            AnimateWindowOutAndClose();
-        }
+        #region Р›РѕРіРёСЂРѕРІР°РЅРёРµ
 
-        private void InitConfig()
+        private void ShowProgressBar()
         {
-            // Создать дефолт, если нет
-            if (!File.Exists("config.json"))
-                File.WriteAllText("config.json",
-                    JsonConvert.SerializeObject(Config.Default(), Formatting.Indented));
-
-            // Загрузить
-            try
+            if (DownloadProgress.Visibility != Visibility.Visible)
             {
-                Program.Config = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при чтении конфигурации:\n{ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                Application.Current.Shutdown();
+                DownloadProgress.Visibility = Visibility.Visible;
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));
+                DownloadProgress.BeginAnimation(OpacityProperty, fadeIn);
             }
         }
-        #endregion
 
-        #region Логирование
+        private void SetProgress(double value, string status)
+        {
+            DownloadProgress.IsIndeterminate = false;
+            DownloadProgress.Value = value;
+            DownloadProgress.Tag = status;
+            double opacity = 0.3 + 0.7 * (value / 100.0);
+            var anim = new DoubleAnimation(opacity, TimeSpan.FromMilliseconds(200));
+            DownloadProgress.BeginAnimation(OpacityProperty, anim);
+            ShowProgressBar();
+        }
+
+        private void SetIndeterminate(string status)
+        {
+            DownloadProgress.IsIndeterminate = true;
+            DownloadProgress.Tag = status;
+            ShowProgressBar();
+        }
 
         private void SubscribeToPatcherLog()
         {
-            Patcher.Onlog += (s, msg) =>
+            Patcher.OnDownloadProgress += async (s, progress) =>
             {
-                // Patcher может логировать с фонового потока
-                Dispatcher.Invoke(() => Log($"Patcher - {msg}"));
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (progress.Progress < 0)
+                    {
+                        SetIndeterminate(progress.Status);
+                    }
+                    else
+                    {
+                        SetProgress(progress.Progress, progress.Status);
+                    }
+                });
             };
         }
 
-        public static void Log(string message)
-        {
-            _LogTextBox.AppendText($"[ {DateTime.Now:HH:mm:ss} ] {message}\n");
-            _LogTextBox.ScrollToEnd();
-        }
-
         #endregion
 
-        #region Установка/Запуск
+        #region РЈСЃС‚Р°РЅРѕРІРєР°/Р—Р°РїСѓСЃРє
 
         private async void PatchButton_Click(object sender, RoutedEventArgs e)
         {
-            PatchButton.IsEnabled = false;
-            RunButton.IsEnabled = false;
-
+            await FadeOutButtons();
             try
             {
-                Log("Начинаем установку...");
-                foreach (var p in Process.GetProcessesByName("Яндекс Музыка"))
-                {
-                    p.Kill();
-                }
-
+                await KillYandexMusicProcess();
                 await Task.Delay(500);
-                if (Directory.Exists("temp")) Directory.Delete("temp", true);
-                if (Directory.Exists(Program.ModPath)) Directory.Delete(Program.ModPath, true);
-
-                await Patcher.DownloadLastestMusic();
-                await Patcher.Asar.Unpack(Path.Combine(Program.ModPath, "resources", "app.asar"),
-                                             Path.Combine(Program.ModPath, "resources", "app"));
-                File.Delete(Path.Combine(Program.ModPath, "resources", "app.asar"));
-                Patcher.InstallMods(Path.Combine(Program.ModPath, "resources", "app"));
-                await Patcher.Asar.Pack(Path.Combine(Program.ModPath, "resources", "app", "*"),
-                                        Path.Combine(Program.ModPath, "resources", "app.asar"));
-
-                // Удаление папки app в YandexMusic/resources
-                string appFolderPath = Path.Combine(Program.ModPath, "resources", "app");
-                if (Directory.Exists(appFolderPath))
-                {
-                    Directory.Delete(appFolderPath, true);
-                }
-
-                // Перемещение папки YandexMusic в %localappdata%/Programs/
-                string programsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
-                // Создаем родительскую папку, если её нет
-                if (!Directory.Exists(programsDir))
-                {
-                    Directory.CreateDirectory(programsDir);
-                }
-                string targetPath = Path.Combine(programsDir, "YandexMusic");
-                if (Directory.Exists(targetPath))
-                {
-                    Directory.Delete(targetPath, true);
-                }
-                Directory.Move(Program.ModPath, targetPath);
-
-                Utils.CreateDesktopShortcut("Яндекс Музыка",
-                    Path.Combine(targetPath, "Яндекс Музыка.exe"));
-
-                Log("Готово! Ярлык создан на рабочем столе.");
+                await CleanupDirectories();
+                await InstallMod();
             }
             catch (Exception ex)
             {
-                Log($"Ошибка запуска патчера:\n{ex}");
-                MessageBox.Show($"Ошибка запуска патчера:\n{ex}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"РћС€РёР±РєР° Р·Р°РїСѓСЃРєР° РїР°С‚С‡РµСЂР°:\n{ex}", "РћС€РёР±РєР°", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
-                UpdateButtonsState();
+                await UpdateUIAfterPatch();
             }
         }
 
+        private async Task FadeOutButtons()
+        {
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+            fadeOut.Completed += (s, e) =>
+            {
+                this.PatchButton.Visibility = Visibility.Collapsed;
+                this.RunButton.Visibility = Visibility.Collapsed;
+                this.UpdateButton.Visibility = Visibility.Collapsed;
+                this.ReportButton.Visibility = Visibility.Collapsed;
+                this.CloseButton.Visibility = Visibility.Collapsed;
+            };
+            this.PatchButton.BeginAnimation(OpacityProperty, fadeOut);
+            this.RunButton.BeginAnimation(OpacityProperty, fadeOut);
+            this.UpdateButton.BeginAnimation(OpacityProperty, fadeOut);
+            this.ReportButton.BeginAnimation(OpacityProperty, fadeOut);
+            this.CloseButton.BeginAnimation(OpacityProperty, fadeOut);
+            await Task.Delay(200);
+        }
 
-        private void RunButton_Click(object sender, RoutedEventArgs e)
+        private async Task KillYandexMusicProcess()
+        {
+            await Task.Run(() =>
+            {
+                foreach (var p in Process.GetProcessesByName("РЇРЅРґРµРєСЃ РњСѓР·С‹РєР°"))
+                {
+                    p.Kill();
+                }
+            });
+        }
+
+        private async Task CleanupDirectories()
+        {
+            await Task.Run(() =>
+            {
+                if (Directory.Exists("temp")) Directory.Delete("temp", true);
+                if (Directory.Exists(Program.ModPath)) Directory.Delete(Program.ModPath, true);
+            });
+        }
+
+        private async Task InstallMod()
+        {
+            await Patcher.DownloadLastestMusic();
+            await Patcher.Asar.Unpack(Path.Combine(Program.ModPath, "resources", "app.asar"),
+                                     Path.Combine(Program.ModPath, "resources", "app"));
+            File.Delete(Path.Combine(Program.ModPath, "resources", "app.asar"));
+            Patcher.InstallMods(Path.Combine(Program.ModPath, "resources", "app"));
+            await Patcher.Asar.Pack(Path.Combine(Program.ModPath, "resources", "app", "*"),
+                                    Path.Combine(Program.ModPath, "resources", "app.asar"));
+
+            string appFolderPath = Path.Combine(Program.ModPath, "resources", "app");
+            if (Directory.Exists(appFolderPath))
+            {
+                Directory.Delete(appFolderPath, true);
+            }
+
+            Utils.CreateDesktopShortcut("РЇРЅРґРµРєСЃ РњСѓР·С‹РєР°",
+                Path.GetFullPath(Path.Combine(Program.ModPath, "РЇРЅРґРµРєСЃ РњСѓР·С‹РєР°.exe")));
+        }
+
+        private async Task UpdateUIAfterPatch()
+        {
+            UpdateButtonsState();
+
+            var version = await Update.GetLastVersion();
+            bool hasUpdate = !string.IsNullOrWhiteSpace(version) && version != "error" && version != Program.Version;
+
+            this.PatchButton.Visibility = Visibility.Visible;
+            this.RunButton.Visibility = Visibility.Visible;
+            this.ReportButton.Visibility = Visibility.Visible;
+            this.CloseButton.Visibility = Visibility.Visible;
+            if (hasUpdate)
+            {
+                this.UpdateButton.Visibility = Visibility.Visible;
+            }
+
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));
+            this.PatchButton.BeginAnimation(OpacityProperty, fadeIn);
+            this.RunButton.BeginAnimation(OpacityProperty, fadeIn);
+            this.ReportButton.BeginAnimation(OpacityProperty, fadeIn);
+            this.CloseButton.BeginAnimation(OpacityProperty, fadeIn);
+            if (hasUpdate)
+            {
+                this.UpdateButton.BeginAnimation(OpacityProperty, fadeIn);
+            }
+        }
+
+        private async void RunButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "YandexMusic");
-                string exePath = Path.Combine(targetPath, "Яндекс Музыка.exe");
-
-                // Проверка наличия Яндекс Музыки в целевой папке
-                if (!File.Exists(exePath))
-                {
-                    Log($"Ошибка: Файл '{exePath}' не найден, установи мод");
-                    return;
-                }
-
-                Process.Start(exePath);
+                string exePath = Path.Combine(Program.ModPath, "РЇРЅРґРµРєСЃ РњСѓР·С‹РєР°.exe");
+                await Task.Run(() => Process.Start(exePath));
+                this.Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка запуска Музыки:\n\n{ex}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"РћС€РёР±РєР° Р·Р°РїСѓСЃРєР° РњСѓР·С‹РєРё:\n\n{ex}", "РћС€РёР±РєР°", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ReportButton_Click(object sender, RoutedEventArgs e)
+        private async void ReportButton_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start(new ProcessStartInfo
+            await Task.Run(() => Process.Start(new ProcessStartInfo
             {
                 FileName = "https://github.com/DarkPlayOff/YandexMusicExtMod/issues/new",
                 UseShellExecute = true
-            });
+            }));
+        }
+
+        private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            await Task.Run(() => Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest",
+                UseShellExecute = true
+            }));
         }
 
         #endregion
 
-        #region Обновления и состояние кнопок
+        #region РћР±РЅРѕРІР»РµРЅРёСЏ Рё СЃРѕСЃС‚РѕСЏРЅРёРµ РєРЅРѕРїРѕРє
 
         private async Task CheckForUpdates()
         {
             var version = await Update.GetLastVersion();
             if (!string.IsNullOrWhiteSpace(version) && version != "error" && version != Program.Version)
             {
-                var res = MessageBox.Show($"Доступно обновление v{version}!\nСкачать?", "Обновление",
-                    MessageBoxButton.OKCancel, MessageBoxImage.Question);
-                if (res == MessageBoxResult.OK)
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest",
-                        UseShellExecute = true
-                    });
-                }
+                UpdateButton.Visibility = Visibility.Visible;
+                UpdateButton.Opacity = 0;
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));
+                UpdateButton.BeginAnimation(OpacityProperty, fadeIn);
+
+                ReportButton.HorizontalAlignment = HorizontalAlignment.Right;
+                ReportButton.Margin = new Thickness(0, 0, 19, 19);
+            }
+            else
+            {
+                ReportButton.HorizontalAlignment = HorizontalAlignment.Center;
+                ReportButton.Margin = new Thickness(0, 0, 0, 19);
             }
         }
-
-        #endregion
 
         private void UpdateButtonsState()
         {
             if (Patcher.IsModInstalled())
             {
-                PatchButton.Content = "Обновить мод";
-                RunButton.IsEnabled = true;
+                this.PatchButton.Content = "РћР±РЅРѕРІРёС‚СЊ РјРѕРґ";
+                this.RunButton.IsEnabled = true;
             }
             else
             {
-                PatchButton.Content = "Установить мод";
-                RunButton.IsEnabled = false;
+                this.PatchButton.Content = "РЈСЃС‚Р°РЅРѕРІРёС‚СЊ РјРѕРґ";
+                this.RunButton.IsEnabled = false;
             }
-            PatchButton.IsEnabled = true;
+            this.PatchButton.IsEnabled = true;
         }
 
-        #region Анимация открытия окна
+        #endregion
+
+        #region РђРЅРёРјР°С†РёСЏ РѕРєРЅР°
 
         private void AnimateWindowIn()
         {
@@ -282,14 +344,15 @@ namespace YandexMusicPatcherGui
             sb.Begin();
         }
 
-        #endregion
-
-        #region Анимация закрытия окна
-
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
                 this.DragMove();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            AnimateWindowOutAndClose();
         }
 
         private void AnimateWindowOutAndClose()
