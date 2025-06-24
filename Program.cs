@@ -1,16 +1,19 @@
+using System.Reflection;
+using Avalonia;
 namespace YandexMusicPatcherGui
 {
     internal static class Program
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
         [STAThread]
-        static void Main()
+        public static void Main(string[] args)
         {
-            new System.Windows.Application().Run(new Main());
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
-        public const string ModPath = "YandexMusic";
-        public const string Version = "2.0.7.4";
+        public static AppBuilder BuildAvaloniaApp()
+            => AppBuilder.Configure<AppMain>()
+                .UsePlatformDetect();
+
+        public static readonly string ModPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "YandexMusic");
+        public static readonly string Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
     }
 }

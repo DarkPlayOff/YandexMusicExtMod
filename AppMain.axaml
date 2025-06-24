@@ -1,0 +1,75 @@
+<Application xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:YandexMusicPatcherGui"
+             xmlns:media="clr-namespace:Avalonia.Media;assembly=Avalonia.Base"
+             x:Class="YandexMusicPatcherGui.AppMain"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+        
+        <Style Selector="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Border x:Name="BlurBackground"
+                                CornerRadius="4"
+                                BorderThickness="1"
+                                BorderBrush="#55FFFFFF"
+                                Background="#22FFFFFF">
+                        </Border>
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="4,2"
+                                          Content="{TemplateBinding Content}"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <!-- Стиль для тени фона кнопки -->
+        <Style Selector="Button:pointerover /template/ Border#BlurBackground">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="Button:pressed /template/ Border#BlurBackground">
+            <Setter Property="Background" Value="#55FFFFFF"/>
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.5"/>
+        </Style>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#222"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#555"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <!-- Базовый стиль для ProgressBar, специфичный AcrylicProgressBar будет ниже -->
+        <Style Selector="ProgressBar">
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/> <!-- Для IsIndeterminate=true цвета -->
+            <Setter Property="Background" Value="#22FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#55FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/> 
+        </Style>
+
+    </Application.Styles>
+
+    <!-- Ресурсы приложения, такие как конвертеры, можно определить здесь -->
+    <Application.Resources>
+        <local:ProgressToWidthConverter x:Key="ProgressToWidthConverter"/>
+    </Application.Resources>
+</Application> 

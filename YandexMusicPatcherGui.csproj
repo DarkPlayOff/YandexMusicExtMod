@@ -1,27 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows10.0.17763.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Nullable>enable</Nullable>
-    <UseWindowsForms>False</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-	<ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
-    <ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <ApplicationIcon>icon.ico</ApplicationIcon>
-    <UseWPF>True</UseWPF>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
-    <NoWin32Manifest>true</NoWin32Manifest>
     <SignAssembly>False</SignAssembly>
-    <AssemblyVersion>2.0.7.4</AssemblyVersion>
-    <FileVersion>2.0.7.4</FileVersion>
+    <AssemblyVersion>2.0.7.5</AssemblyVersion>
+    <FileVersion>2.0.7.5</FileVersion>
     <PackageProjectUrl>https://github.com/DarkPlayOff/YandexMusicExtMod</PackageProjectUrl>
-    <Description>Патчер для Яндекс Музыки</Description>
+    <Description>Установщик мода для Яндекс Музыки</Description>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DebugType>none</DebugType>
+    <DebugType>portable</DebugType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -29,29 +23,34 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <PackageReference Include="Avalonia" Version="11.3.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.1" />
+    <PackageReference Include="WindowsShortcutFactory" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="mods\**">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-</ItemGroup>
-
-  <ItemGroup>
-    <Content Include="7zip\**">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-</ItemGroup>
-
-  <ItemGroup>
-    <Content Include="icon.ico" />
+    <EmbeddedResource Include="7zip\7za.exe" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="InternalMods\" />
-  </ItemGroup>
+	<ItemGroup>
+		<Folder Include="Models\" />
+		<Compile Update="**\*.axaml.cs">
+			<DependentUpon>%(Filename)</DependentUpon>
+		</Compile>
 
+		<AvaloniaXaml Remove="**\*.axaml" />
 
-
+		<AvaloniaResource Include="**\*.axaml">
+			<SubType>Designer</SubType>
+		</AvaloniaResource>
+		<AvaloniaResource Include="Assets\**" />
+	</ItemGroup>
+	<ItemGroup>
+		<AdditionalFiles Include="**\*.axaml" />
+	</ItemGroup>
 </Project>

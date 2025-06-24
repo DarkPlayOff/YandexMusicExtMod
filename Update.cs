@@ -1,32 +1,28 @@
-﻿using System.Net.Http;
-
-namespace YandexMusicPatcherGui
+﻿namespace YandexMusicPatcherGui
 {
     public static class Update
     {
-        /// <summary>
-        /// Хитрым образом проверяет последнюю версию релиза, выложенного на гитхабе.
-        /// Тэг последнего релиза можно получить узнав url редиректа, сделав запрос на
-        /// /releases/latest
-        /// </summary>
-        public static async Task<string> GetLastVersion()
+        private static readonly HttpClient httpClient;
+
+        static Update()
+        {
+            var handler = new HttpClientHandler { AllowAutoRedirect = false };
+            httpClient = new HttpClient(handler);
+        }
+
+        public static async Task<string?> GetLastVersion()
         {
             try
             {
-                HttpClientHandler httpClientHandler = new HttpClientHandler();
-                httpClientHandler.AllowAutoRedirect = false;
-                var client = new HttpClient(httpClientHandler);
                 var request = new HttpRequestMessage(HttpMethod.Get,
                     "https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest");
-                var response = await client.SendAsync(request);
-                var redirectUrl = response.Headers.Location.ToString();
-                var lastVersion = redirectUrl.Split('/').Last().Replace("v", "");
-
-                return lastVersion;
+                var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+                
+                return response.Headers.Location?.ToString().Split('/').LastOrDefault()?.Replace("v", "");
             }
             catch
             {
-                return "error";
+                return null;
             }
         }
     }
