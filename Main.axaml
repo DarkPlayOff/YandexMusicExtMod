@@ -17,10 +17,6 @@
         TransparencyLevelHint="Mica"
         CanResize="False">
 
-    <Window.Resources>
-        <!-- BoxShadows для ProgressBar удалены -->
-    </Window.Resources>
-
     <Window.Styles>
         <Style Selector="ProgressBar.AcrylicProgressBar">
             <Setter Property="Height" Value="64"/>

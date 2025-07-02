@@ -11,7 +11,6 @@ namespace YandexMusicPatcherGui
 
         private static readonly HttpClient httpClient;
         private const int MaxRetries = 5;
-        private const string MusicS3Url = "https://music-desktop-application.s3.yandex.net";
         private const string GithubUrl = "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.gz";
         private const int BufferSize = 81920;
         private const int ProgressUpdateThreshold = 51200;
@@ -52,24 +51,14 @@ namespace YandexMusicPatcherGui
             try
             {
                 await Extract7ZaToFolder(tempFolder);
-                
-                var yamlRaw = await RetryOnFailAsync(
-                    async () => await httpClient.GetStringAsync($"{MusicS3Url}/stable/latest.yml"),
-                    "загрузка");
-                
-                if (string.IsNullOrEmpty(yamlRaw))
-                    throw new Exception("Не удалось загрузить latest.yml");
-                
-                
-                var latestPath = ParseYamlPath(yamlRaw);
-                var latestUrl = $"{MusicS3Url}/stable/{latestPath}";
 
+                var latestUrl = "https://application.s3.yandex.net/stable/Yandex_Music.exe";
                 string stableExePath = Path.Combine(tempFolder, "stable.exe");
                 await DownloadFileWithProgressAsync(latestUrl, stableExePath, "Загрузка клиента");
 
                 ReportProgress(100, "Распаковка...");
                 await ExtractArchiveAsync(stableExePath, Program.ModPath, tempFolder);
-                ReportProgress(100, "Установка завершена");
+                ReportProgress(100, "Распаковка завершена");
             }
             catch (Exception)
             {
@@ -96,15 +85,6 @@ namespace YandexMusicPatcherGui
             {
                 throw;
             }
-        }
-
-        private static string ParseYamlPath(string yamlContent)
-        {
-            var match = Regex.Match(yamlContent, @"(?m)^\s*path:\s*(.+)\s*$");
-            if (!match.Success)
-                throw new FormatException("Не удалось найти поле 'path' в latest.yml");
-
-            return match.Groups[1].Value.Trim().Trim('"');
         }
 
         private static async Task ExtractArchiveAsync(string archivePath, string outputPath, string tempFolder)

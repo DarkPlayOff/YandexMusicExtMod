@@ -57,10 +57,9 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
         
-        <!-- Базовый стиль для ProgressBar, специфичный AcrylicProgressBar будет ниже -->
         <Style Selector="ProgressBar">
             <Setter Property="Height" Value="64"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/> <!-- Для IsIndeterminate=true цвета -->
+            <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="BorderBrush" Value="#55FFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/> 
