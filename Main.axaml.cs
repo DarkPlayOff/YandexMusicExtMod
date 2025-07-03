@@ -41,6 +41,16 @@ namespace YandexMusicPatcherGui
 
         public Main()
         {
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+            {
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.Mica, WindowTransparencyLevel.None };
+            }
+            else if (OperatingSystem.IsWindows())
+            {
+                TransparencyLevelHint = new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.None };
+                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#CC000000"));
+            }
+
             AvaloniaXamlLoader.Load(this);
             _downloadProgress = this.FindControl<ProgressBar>("DownloadProgress");
             _patchButton      = this.FindControl<Button>("PatchButton");
@@ -229,29 +239,6 @@ namespace YandexMusicPatcherGui
                 foreach (var p in Process.GetProcessesByName("Яндекс Музыка"))
                 {
                     try { p.Kill(); } catch { }
-                }
-            }).ConfigureAwait(false);
-        }
-
-        private async Task CleanupDirectories()
-        {
-            await Task.Run(() =>
-            {
-                Directory.CreateDirectory(Program.ModPath);
-                foreach (var item in Directory.GetFileSystemEntries(Program.ModPath))
-                {
-                    try
-                    {
-                        if (Directory.Exists(item))
-                        {
-                            Directory.Delete(item, true);
-                        }
-                        else if (File.Exists(item))
-                        {
-                            File.Delete(item);
-                        }
-                    }
-                    catch {}
                 }
             }).ConfigureAwait(false);
         }
