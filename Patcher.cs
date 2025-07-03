@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Net;
 
+
 namespace YandexMusicPatcherGui
 {
     public static class Patcher
@@ -52,7 +53,7 @@ namespace YandexMusicPatcherGui
             {
                 await Extract7ZaToFolder(tempFolder);
 
-                var latestUrl = "https://application.s3.yandex.net/stable/Yandex_Music.exe";
+                var latestUrl = " https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe";
                 string stableExePath = Path.Combine(tempFolder, "stable.exe");
                 await DownloadFileWithProgressAsync(latestUrl, stableExePath, "Загрузка клиента");
 
@@ -133,8 +134,7 @@ namespace YandexMusicPatcherGui
                 await stream.CopyToAsync(fileStream);
             }
             
-            if (!File.Exists(extracted7zaPath))
-                throw new FileNotFoundException($"Не удалось создать файл 7za.exe в {folder}");
+            
                 
             return extracted7zaPath;
         }
@@ -152,7 +152,7 @@ namespace YandexMusicPatcherGui
                 WindowStyle = ProcessWindowStyle.Hidden,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                WorkingDirectory = directoryPath ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty
+                WorkingDirectory = directoryPath ?? AppContext.BaseDirectory ?? string.Empty
             };
         }
 
@@ -178,7 +178,7 @@ namespace YandexMusicPatcherGui
         {
             if (Directory.Exists(directory))
             {
-                try { Directory.Delete(directory, true); } catch { }
+                Directory.Delete(directory, true);
             }
         }
         
@@ -190,7 +190,7 @@ namespace YandexMusicPatcherGui
         
         private static void SafeDelete(string filePath)
         {
-            try { if (File.Exists(filePath)) File.Delete(filePath); } catch { }
+            if (File.Exists(filePath)) File.Delete(filePath);
         }
 
         private static void ReportProgress(int progress, string status)
@@ -211,7 +211,7 @@ namespace YandexMusicPatcherGui
                     if (retryCount > 0)
                     {
                         if (retryCount == 1 || retryCount == MaxRetries - 1) 
-                            ReportProgress(0, $"Повторная попытка {retryCount}...");
+                            ReportProgress(0, $"Повторная попытка загрузки {retryCount}...");
                             
                         double delay = Math.Min(30, Math.Pow(2, retryCount - 1));
                         await Task.Delay(TimeSpan.FromSeconds(delay));
@@ -281,32 +281,6 @@ namespace YandexMusicPatcherGui
             }
         }
 
-        private static async Task<T> RetryOnFailAsync<T>(Func<Task<T>> action, string operationDescription, int maxRetries = MaxRetries)
-        {
-            int retryCount = 0;
-            
-            while (true)
-            {
-                try
-                {
-                    if (retryCount > 0)
-                    {
-                        double delay = Math.Min(30, Math.Pow(2, retryCount - 1));
-                        await Task.Delay(TimeSpan.FromSeconds(delay));
-                    }
-                    
-                    return await action();
-                }
-                catch (Exception)
-                {
-                    retryCount++;
-                    
-                    if (retryCount >= maxRetries)
-                        throw;
-                    
-                    if (retryCount == 1);
-                }
-            }
-        }
+        
     }
 }

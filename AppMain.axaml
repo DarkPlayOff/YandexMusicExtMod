@@ -1,11 +1,11 @@
 <Application xmlns="https://github.com/avaloniaui"
 			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:YandexMusicPatcherGui"
-             xmlns:media="clr-namespace:Avalonia.Media;assembly=Avalonia.Base"
+             
              x:Class="YandexMusicPatcherGui.AppMain"
              RequestedThemeVariant="Dark">
     <Application.Styles>
-        <FluentTheme />
+
         
         <Style Selector="Button">
             <Setter Property="Foreground" Value="White"/>
@@ -30,7 +30,7 @@
                 </ControlTemplate>
             </Setter>
         </Style>
-        <!-- Стиль для тени фона кнопки -->
+        
         <Style Selector="Button:pointerover /template/ Border#BlurBackground">
             <Setter Property="Background" Value="#33FFFFFF"/>
         </Style>
@@ -67,7 +67,7 @@
 
     </Application.Styles>
 
-    <!-- Ресурсы приложения, такие как конвертеры, можно определить здесь -->
+    
     <Application.Resources>
         <local:ProgressToWidthConverter x:Key="ProgressToWidthConverter"/>
     </Application.Resources>

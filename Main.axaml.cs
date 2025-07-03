@@ -37,7 +37,7 @@ namespace YandexMusicPatcherGui
         private readonly Button? _updateButton;
         private readonly Button? _closeButton;
         private bool _patchingCompleted = false;
-        public static readonly string ModPath = Program.ModPath;
+        
 
         public Main()
         {
@@ -149,11 +149,11 @@ namespace YandexMusicPatcherGui
 
             if (show)
             {
-                var visibleButtons = buttons.Where(b => b.IsVisible).ToList();
+                var visibleButtons = buttons.Where(b => b != null && b.IsVisible).ToList();
                 animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0.0) } });
                 animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1.0) } });
                 
-                var tasks = visibleButtons.Select(b => animation.RunAsync(b, CancellationToken.None)).ToList();
+                var tasks = visibleButtons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
                 await Task.WhenAll(tasks);
             }
             else
@@ -161,7 +161,7 @@ namespace YandexMusicPatcherGui
                 animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 1.0) } });
                 animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 0.0) } });
 
-                var tasks = buttons.Select(b => animation.RunAsync(b, CancellationToken.None)).ToList();
+                var tasks = buttons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
                 await Task.WhenAll(tasks);
 
                 foreach (var button in buttons)
@@ -178,7 +178,7 @@ namespace YandexMusicPatcherGui
             {
                 await KillYandexMusicProcess();
                 await Task.Delay(500);
-                await CleanupDirectories();
+                //await CleanupDirectories();
                 await InstallMod();
                 await CreateDesktopShortcut();
                 _patchingCompleted = true;
@@ -271,7 +271,7 @@ namespace YandexMusicPatcherGui
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = Path.Combine(ModPath, "Яндекс Музыка.exe"),
+                    FileName = Path.Combine(Program.ModPath, "Яндекс Музыка.exe"),
                     UseShellExecute = true
                 });
             }

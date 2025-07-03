@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:YandexMusicPatcherGui"
-        xmlns:media="clr-namespace:Avalonia.Media;assembly=Avalonia.Base"
+        
         mc:Ignorable="d" d:DesignWidth="353" d:DesignHeight="240"
         x:Class="YandexMusicPatcherGui.Main"
         Icon="/Assets/icon.ico"

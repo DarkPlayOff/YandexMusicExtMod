@@ -22,7 +22,7 @@
             }
             catch
             {
-                return null;
+                throw;
             }
         }
     }
