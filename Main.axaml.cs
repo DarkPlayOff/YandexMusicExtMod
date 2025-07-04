@@ -36,6 +36,7 @@ public class Main : Window
     private readonly Button? _reportButton;
     private readonly Button? _runButton;
     private readonly Button? _updateButton;
+    private readonly TextBlock? _versionTextBlock;
     private bool _patchingCompleted;
 
 
@@ -58,6 +59,7 @@ public class Main : Window
         _reportButton = this.FindControl<Button>("ReportButton");
         _updateButton = this.FindControl<Button>("UpdateButton");
         _closeButton = this.FindControl<Button>("CloseButton");
+        _versionTextBlock = this.FindControl<TextBlock>("VersionTextBlock");
 
         DataContext = this;
     }
@@ -66,8 +68,7 @@ public class Main : Window
     {
         base.OnOpened(e);
         SubscribeToPatcherLog();
-        UpdateButtonsState();
-        Dispatcher.UIThread.InvokeAsync(CheckForUpdates);
+        Dispatcher.UIThread.InvokeAsync(UpdateUI);
     }
 
     private void Window_MouseDown(object sender, PointerPressedEventArgs e)
@@ -85,21 +86,17 @@ public class Main : Window
         if (_downloadProgress != null && !_downloadProgress.IsVisible) _downloadProgress.IsVisible = true;
     }
 
-    private void UpdateButtonsState()
+    private async Task UpdateUI()
     {
-        if (_patchButton == null || _runButton == null) return;
-
-        var isModInstalled = Patcher.IsModInstalled();
-
-        _patchButton.Content = isModInstalled ? "Обновить мод" : "Установить мод";
-        _runButton.IsEnabled = isModInstalled;
+        await CheckForUpdates();
+        await UpdateVersionInfo();
     }
 
     private async Task CheckForUpdates()
     {
         if (_updateButton == null) return;
 
-        var version = await Update.GetLastVersion();
+        var version = await Update.GetLatestAppVersion();
         var hasUpdate = !string.IsNullOrWhiteSpace(version) && version != Program.Version;
         _updateButton.IsVisible = hasUpdate;
     }
@@ -181,6 +178,8 @@ public class Main : Window
             await KillYandexMusicProcess();
             await Task.Delay(500);
             await InstallMod();
+            var latestVersion = await VersionManager.GetLatestModVersion();
+            if (latestVersion != null) VersionManager.SetInstalledVersion(latestVersion);
             await CreateDesktopShortcut();
             _patchingCompleted = true;
         }
@@ -205,8 +204,7 @@ public class Main : Window
 
     private async Task UpdateUIAfterPatch()
     {
-        UpdateButtonsState();
-        await CheckForUpdates();
+        await UpdateUI();
 
         if (_downloadProgress != null && _patchingCompleted) SetProgress(100, "Ярлык создан на рабочем столе!");
 
@@ -269,6 +267,35 @@ public class Main : Window
     private void UpdateButton_Click(object sender, RoutedEventArgs e)
     {
         OpenUrlSafely("https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest");
+    }
+
+    private async Task UpdateVersionInfo()
+    {
+        var installedVersion = VersionManager.GetInstalledVersion();
+        var latestVersion = await VersionManager.GetLatestModVersion();
+
+        if (_versionTextBlock != null)
+        {
+            if (installedVersion == "Не установлено")
+                _versionTextBlock.Text = string.Empty;
+            else if (installedVersion != latestVersion)
+                _versionTextBlock.Text =
+                    $"Доступно обновление мода: {installedVersion} -> {latestVersion ?? "Неизвестно"}";
+            else
+                _versionTextBlock.Text = $"Версия мода: {installedVersion}";
+        }
+
+        if (_patchButton != null)
+        {
+            if (installedVersion == "Не установлено")
+                _patchButton.Content = "Установить мод";
+            else if (installedVersion != latestVersion)
+                _patchButton.Content = "Обновить мод";
+            else
+                _patchButton.Content = "Переустановить мод";
+        }
+
+        if (_runButton != null) _runButton.IsEnabled = Patcher.IsModInstalled();
     }
 
     private static void OpenUrlSafely(string url)

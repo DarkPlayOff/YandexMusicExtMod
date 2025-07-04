@@ -5,6 +5,8 @@ namespace YandexMusicPatcherGui;
 
 internal static class Program
 {
+    public static readonly string RepoUrl = "https://github.com/DarkPlayOff/YandexMusicExtMod";
+
     public static readonly string ModPath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs",
             "YandexMusic");
@@ -17,7 +19,7 @@ internal static class Program
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
-    public static AppBuilder BuildAvaloniaApp()
+    private static AppBuilder BuildAvaloniaApp()
     {
         return AppBuilder.Configure<AppMain>()
             .UsePlatformDetect();

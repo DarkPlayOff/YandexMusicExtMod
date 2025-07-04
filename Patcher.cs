@@ -33,6 +33,11 @@ public static class Patcher
 
     public static event EventHandler<(int Progress, string Status)>? OnDownloadProgress;
 
+    public static async Task<string?> GetLatestModVersion()
+    {
+        return await Update.GetLatestAppVersion();
+    }
+
     public static bool IsModInstalled()
     {
         var targetPath = Program.ModPath;
