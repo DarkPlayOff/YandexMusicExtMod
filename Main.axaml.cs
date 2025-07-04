@@ -173,6 +173,7 @@ public class Main : Window
     private async void PatchButton_Click(object sender, RoutedEventArgs e)
     {
         await AnimateButtonsVisibility(false);
+        if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
         try
         {
             await KillYandexMusicProcess();
@@ -213,6 +214,7 @@ public class Main : Window
         _reportButton?.SetCurrentValue(IsVisibleProperty, true);
         _closeButton?.SetCurrentValue(IsVisibleProperty, true);
         if (_updateButton != null) _updateButton.IsVisible = false;
+        if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
         await AnimateButtonsVisibility(true);
     }
 
@@ -233,7 +235,14 @@ public class Main : Window
 
     private async Task InstallMod()
     {
-        await Patcher.DownloadLastestMusic();
+        if (!Patcher.IsModInstalled())
+        {
+            await Patcher.DownloadLastestMusic();
+        }
+        else
+        {
+            SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
+        }
         await Patcher.DownloadModifiedAsar();
         //Patcher.CleanupTempFiles();
     }
