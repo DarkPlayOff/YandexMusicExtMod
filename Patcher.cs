@@ -59,7 +59,7 @@ public static class Patcher
 
         await Extract7ZaToFolder(tempFolder);
 
-        var latestUrl = " https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe";
+        var latestUrl = " https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_5.58.0.exe";
         var stableExePath = Path.Combine(tempFolder, "stable.exe");
         await DownloadFileWithProgressAsync(latestUrl, stableExePath, "Загрузка клиента");
 
