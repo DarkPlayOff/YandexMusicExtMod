@@ -2,7 +2,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-
         mc:Ignorable="d" d:DesignWidth="353" d:DesignHeight="240"
         x:Class="YandexMusicPatcherGui.Main"
         Icon="/Assets/icon.ico"
@@ -60,6 +59,16 @@
         <Style Selector="ProgressBar.AcrylicProgressBar:indeterminate /template/ Border#PART_Indicator">
             <Setter Property="Background" Value="#888888" />
         </Style>
+        <Style Selector="Border.SlidingPanel">
+            <Setter Property="Background" Value="#CC000000" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="RenderTransform" Value="translateY(250px)" />
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="Border.SlidingPanel.Visible">
+            <Setter Property="RenderTransform" Value="translateY(0)" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
     </Window.Styles>
 
     <Panel Background="Transparent" PointerPressed="Window_MouseDown">
@@ -84,7 +93,12 @@
 
             <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                         Margin="0,0,0,55">
-                <TextBlock x:Name="VersionTextBlock" Text="" HorizontalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="VersionTextBlock" Text="" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="PatchNotesButton" Content="?" Width="20" Height="20" FontSize="12" Margin="5,0,0,0"
+                            Click="PatchNotesButton_Click" VerticalAlignment="Center" />
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom"
@@ -96,5 +110,29 @@
                         Click="ReportButton_Click" />
             </StackPanel>
         </Grid>
+
+        <Border x:Name="PatchNotesPanel"
+                Classes="SlidingPanel"
+                Width="320" Height="180"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,50"
+                IsVisible="False">
+            <Border.Transitions>
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut" />
+                </Transitions>
+            </Border.Transitions>
+            <Grid RowDefinitions="Auto, *" ColumnDefinitions="*, Auto">
+                <TextBlock Grid.Column="0" Text="История изменений" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" Margin="5" />
+                <Button Grid.Column="1" x:Name="ClosePatchNotesButton" Content="X" HorizontalAlignment="Right"
+                        VerticalAlignment="Top" Margin="5" Click="ClosePatchNotesButton_Click" />
+                <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" VerticalScrollBarVisibility="Auto" MaxHeight="140">
+                    <TextBlock x:Name="PatchNotesContent" TextWrapping="Wrap" Margin="10" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Panel>
 </Window>

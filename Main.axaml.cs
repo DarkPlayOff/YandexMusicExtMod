@@ -30,9 +30,14 @@ public class ProgressToWidthConverter : IMultiValueConverter
 
 public class Main : Window
 {
+    private static readonly HttpClient HttpClient = new();
     private readonly Button? _closeButton;
+    private readonly Button? _closePatchNotesButton;
     private readonly ProgressBar? _downloadProgress;
     private readonly Button? _patchButton;
+    private readonly Button? _patchNotesButton;
+    private readonly TextBlock? _patchNotesContent;
+    private readonly Border? _patchNotesPanel;
     private readonly Button? _reportButton;
     private readonly Button? _runButton;
     private readonly Button? _updateButton;
@@ -60,6 +65,11 @@ public class Main : Window
         _updateButton = this.FindControl<Button>("UpdateButton");
         _closeButton = this.FindControl<Button>("CloseButton");
         _versionTextBlock = this.FindControl<TextBlock>("VersionTextBlock");
+        _patchNotesPanel = this.FindControl<Border>("PatchNotesPanel");
+        _patchNotesContent = this.FindControl<TextBlock>("PatchNotesContent");
+        _patchNotesButton = this.FindControl<Button>("PatchNotesButton");
+        _closePatchNotesButton = this.FindControl<Button>("ClosePatchNotesButton");
+
 
         DataContext = this;
     }
@@ -236,13 +246,10 @@ public class Main : Window
     private async Task InstallMod()
     {
         if (!Patcher.IsModInstalled())
-        {
             await Patcher.DownloadLastestMusic();
-        }
         else
-        {
             SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
-        }
+
         await Patcher.DownloadModifiedAsar();
         //Patcher.CleanupTempFiles();
     }
@@ -321,5 +328,33 @@ public class Main : Window
         {
             Console.WriteLine($"Не удалось открыть ссылку {url}: {ex}");
         }
+    }
+
+    private async void PatchNotesButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_patchNotesPanel == null || _patchNotesContent == null) return;
+
+        _patchNotesPanel.IsVisible = true;
+        _patchNotesPanel.Classes.Add("Visible");
+        _patchNotesContent.Text = "Загрузка...";
+
+        try
+        {
+            var patchNotesUrl =
+                "https://raw.githubusercontent.com/TheKing-OfTime/YandexMusicModClient/master/PATCHNOTES.md";
+            var markdownContent = await HttpClient.GetStringAsync(patchNotesUrl);
+            _patchNotesContent.Text = markdownContent;
+        }
+        catch (Exception ex)
+        {
+            _patchNotesContent.Text = $"Не удалось загрузить изменения : {ex.Message}";
+        }
+    }
+
+    private void ClosePatchNotesButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_patchNotesPanel == null) return;
+
+        _patchNotesPanel.Classes.Remove("Visible");
     }
 }
