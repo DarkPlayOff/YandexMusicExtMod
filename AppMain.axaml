@@ -64,6 +64,15 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
 
+        <Style Selector="ToolTip">
+            <Setter Property="Background" Value="#333" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#555" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="3" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+
     </Application.Styles>
 
 

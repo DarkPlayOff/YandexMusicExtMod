@@ -280,6 +280,12 @@ public class Main : Window
             "https://github.com/DarkPlayOff/YandexMusicExtMod/issues/new?assignees=&labels=bug&template=bug_report.yml");
     }
 
+    private async void CleanButton_Click(object sender, RoutedEventArgs e)
+    {
+        await Patcher.CleanInstall();
+        await UpdateUIAfterPatch();
+    }
+
     private void UpdateButton_Click(object sender, RoutedEventArgs e)
     {
         OpenUrlSafely("https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest");

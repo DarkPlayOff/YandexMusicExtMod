@@ -197,6 +197,25 @@ public static class Patcher
         }
     }
 
+    public static async Task CleanInstall()
+    {
+        await Task.Run(() =>
+        {
+            var directory = new DirectoryInfo(Program.ModPath);
+            if (!directory.Exists) return;
+
+            foreach (var file in directory.GetFiles())
+            {
+                file.Delete();
+            }
+
+            foreach (var subDirectory in directory.GetDirectories())
+            {
+                subDirectory.Delete(true);
+            }
+        });
+    }
+
     private static void ReportProgress(int progress, string status)
     {
         OnDownloadProgress?.Invoke("Patcher", (progress, status));
