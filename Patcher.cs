@@ -59,7 +59,7 @@ public static class Patcher
 
         await Extract7ZaToFolder(tempFolder);
 
-        var latestUrl = " https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_5.58.0.exe";
+        var latestUrl = " https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_5.60.0.exe";
         var stableExePath = Path.Combine(tempFolder, "stable.exe");
         await DownloadFileWithProgressAsync(latestUrl, stableExePath, "Загрузка клиента");
 
@@ -73,6 +73,14 @@ public static class Patcher
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         var downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
         var resourcesPath = Path.GetFullPath(Path.Combine(Program.ModPath, "resources"));
+        var asarPath = Path.Combine(resourcesPath, "app.asar");
+        var oldAsarPath = Path.Combine(resourcesPath, "oldapp.asar");
+
+        if (File.Exists(asarPath))
+        {
+            if (File.Exists(oldAsarPath)) File.Delete(oldAsarPath);
+            File.Move(asarPath, oldAsarPath);
+        }
 
         Directory.CreateDirectory(resourcesPath);
         Directory.CreateDirectory(tempFolder);
@@ -80,6 +88,11 @@ public static class Patcher
         await DownloadFileWithProgressAsync(GithubUrl, downloadedGzFile, "Загрузка мода");
 
         await ExtractGzipAsync(downloadedGzFile, resourcesPath, tempFolder);
+
+        var patcher = new HashPatcher();
+        await patcher.PatchExecutable(Program.ModPath);
+        
+        CleanupTempFiles();
     }
 
     private static async Task ExtractArchiveAsync(string archivePath, string outputPath, string tempFolder)
@@ -176,6 +189,12 @@ public static class Patcher
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         CleanupDirectory(tempFolder);
+
+        var oldAsarPath = Path.Combine(Program.ModPath, "resources", "oldapp.asar");
+        if (File.Exists(oldAsarPath))
+        {
+            File.Delete(oldAsarPath);
+        }
     }
 
     private static void ReportProgress(int progress, string status)
