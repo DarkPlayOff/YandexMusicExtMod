@@ -41,6 +41,7 @@ public partial class Main : Window
     private readonly Button? _reportButton;
     private readonly Button? _runButton;
     private readonly Button? _updateButton;
+    private readonly Button? _cleanButton;
     private readonly TextBlock? _versionTextBlock;
     private readonly ToggleSwitch? _versionToggle;
     private readonly Border? _warningPanel;
@@ -75,6 +76,7 @@ public partial class Main : Window
         _versionToggle = this.FindControl<ToggleSwitch>("VersionToggle");
         _warningPanel = this.FindControl<Border>("WarningPanel");
         _warningOkButton = this.FindControl<Button>("WarningOkButton");
+        _cleanButton = this.FindControl<Button>("CleanButton"); // Добавлено
 
 
         DataContext = this;
@@ -156,7 +158,7 @@ public partial class Main : Window
     {
         var buttons = new Control?[]
         {
-            _patchButton, _runButton, _reportButton, _updateButton, _closeButton
+            _patchButton, _runButton, _reportButton, _updateButton, _closeButton, _cleanButton
         }.Where(b => b != null).ToList();
 
         var animation = new Animation
@@ -190,6 +192,7 @@ public partial class Main : Window
 
     private async void PatchButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_cleanButton != null) _cleanButton.IsVisible = false;
         await AnimateButtonsVisibility(false);
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
         try
@@ -233,6 +236,7 @@ public partial class Main : Window
         _closeButton?.SetCurrentValue(IsVisibleProperty, true);
         if (_updateButton != null) _updateButton.IsVisible = false;
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
+        if (_cleanButton != null) _cleanButton.IsVisible = true;
         await AnimateButtonsVisibility(true);
     }
 

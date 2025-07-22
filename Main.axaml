@@ -73,7 +73,6 @@
 
     <Panel Background="Transparent" PointerPressed="Window_MouseDown">
         <Grid>
-            <!-- Верхняя панель с кнопками -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0">
                 <Button x:Name="PatchButton" Content="Установить мод" Width="135" Height="25" FontSize="13"
                         Click="PatchButton_Click" />
