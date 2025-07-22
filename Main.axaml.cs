@@ -193,6 +193,7 @@ public partial class Main : Window
     private async void PatchButton_Click(object sender, RoutedEventArgs e)
     {
         if (_cleanButton != null) _cleanButton.IsVisible = false;
+        if (_versionToggle != null) _versionToggle.IsVisible = false;
         await AnimateButtonsVisibility(false);
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
         try
@@ -237,6 +238,7 @@ public partial class Main : Window
         if (_updateButton != null) _updateButton.IsVisible = false;
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
         if (_cleanButton != null) _cleanButton.IsVisible = true;
+        if (_versionToggle != null) _versionToggle.IsVisible = true;
         await AnimateButtonsVisibility(true);
     }
 
