@@ -51,7 +51,7 @@ public static class Patcher
         return File.Exists(exePath) && File.Exists(asarPath);
     }
 
-    public static async Task DownloadLastestMusic()
+    public static async Task DownloadLastestMusic(bool useLatest)
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         Directory.CreateDirectory(tempFolder);
@@ -59,7 +59,15 @@ public static class Patcher
 
         await Extract7ZaToFolder(tempFolder);
 
-        var latestUrl = " https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_5.60.0.exe";
+        var latestUrl = useLatest
+            ? "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe"
+            : "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_5.58.0.exe";
+
+        if (string.IsNullOrEmpty(latestUrl))
+        {
+            throw new Exception("Не удалось получить URL последней версии клиента.");
+        }
+
         var stableExePath = Path.Combine(tempFolder, "stable.exe");
         await DownloadFileWithProgressAsync(latestUrl, stableExePath, "Загрузка клиента");
 
@@ -68,7 +76,7 @@ public static class Patcher
         ReportProgress(100, "Распаковка завершена");
     }
 
-    public static async Task DownloadModifiedAsar()
+    public static async Task DownloadModifiedAsar(bool useLatest)
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         var downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
@@ -76,7 +84,7 @@ public static class Patcher
         var asarPath = Path.Combine(resourcesPath, "app.asar");
         var oldAsarPath = Path.Combine(resourcesPath, "oldapp.asar");
 
-        if (File.Exists(asarPath))
+        if (useLatest && File.Exists(asarPath))
         {
             if (File.Exists(oldAsarPath)) File.Delete(oldAsarPath);
             File.Move(asarPath, oldAsarPath);
@@ -89,9 +97,12 @@ public static class Patcher
 
         await ExtractGzipAsync(downloadedGzFile, resourcesPath, tempFolder);
 
-        var patcher = new HashPatcher();
-        await patcher.PatchExecutable(Program.ModPath);
-        
+        if (useLatest)
+        {
+            var patcher = new HashPatcher();
+            await patcher.PatchExecutable(Program.ModPath);
+        }
+
         CleanupTempFiles();
     }
 

@@ -28,7 +28,7 @@ public class ProgressToWidthConverter : IMultiValueConverter
     }
 }
 
-public class Main : Window
+public partial class Main : Window
 {
     private static readonly HttpClient HttpClient = new();
     private readonly Button? _closeButton;
@@ -42,6 +42,9 @@ public class Main : Window
     private readonly Button? _runButton;
     private readonly Button? _updateButton;
     private readonly TextBlock? _versionTextBlock;
+    private readonly ToggleSwitch? _versionToggle;
+    private readonly Border? _warningPanel;
+    private readonly Button? _warningOkButton;
     private bool _patchingCompleted;
 
 
@@ -69,6 +72,9 @@ public class Main : Window
         _patchNotesContent = this.FindControl<TextBlock>("PatchNotesContent");
         _patchNotesButton = this.FindControl<Button>("PatchNotesButton");
         _closePatchNotesButton = this.FindControl<Button>("ClosePatchNotesButton");
+        _versionToggle = this.FindControl<ToggleSwitch>("VersionToggle");
+        _warningPanel = this.FindControl<Border>("WarningPanel");
+        _warningOkButton = this.FindControl<Button>("WarningOkButton");
 
 
         DataContext = this;
@@ -78,6 +84,8 @@ public class Main : Window
     {
         base.OnOpened(e);
         SubscribeToPatcherLog();
+        if (_versionToggle != null) _versionToggle.IsCheckedChanged += VersionToggle_IsCheckedChanged;
+        if (_warningOkButton != null) _warningOkButton.Click += WarningOkButton_Click;
         Dispatcher.UIThread.InvokeAsync(UpdateUI);
     }
 
@@ -245,12 +253,18 @@ public class Main : Window
 
     private async Task InstallMod()
     {
-        if (!Patcher.IsModInstalled())
-            await Patcher.DownloadLastestMusic();
-        else
-            SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
+        var useLatest = _versionToggle?.IsChecked ?? false;
 
-        await Patcher.DownloadModifiedAsar();
+        if (useLatest || !Patcher.IsModInstalled())
+        {
+            await Patcher.DownloadLastestMusic(useLatest);
+        }
+        else
+        {
+            SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
+        }
+
+        await Patcher.DownloadModifiedAsar(useLatest);
         //Patcher.CleanupTempFiles();
     }
 
@@ -362,5 +376,21 @@ public class Main : Window
         if (_patchNotesPanel == null) return;
 
         _patchNotesPanel.Classes.Remove("Visible");
+    }
+
+    private void VersionToggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_versionToggle?.IsChecked == true && _warningPanel != null)
+        {
+            _warningPanel.IsVisible = true;
+        }
+    }
+
+    private void WarningOkButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_warningPanel != null)
+        {
+            _warningPanel.IsVisible = false;
+        }
     }
 }

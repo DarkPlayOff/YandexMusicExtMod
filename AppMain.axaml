@@ -73,6 +73,31 @@
             <Setter Property="CornerRadius" Value="10" />
         </Style>
 
+        <Style Selector="ToggleSwitch">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center"/>
+                        <Grid Grid.Column="1" Name="PART_SwitchRoot" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0">
+                            <Border Name="PART_Background" Background="#33FFFFFF" CornerRadius="10" Width="44" Height="20"/>
+                            <Panel Name="PART_MovingKnobs" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Border Background="White" CornerRadius="8" Width="16" Height="16" Margin="2"/>
+                            </Panel>
+                        </Grid>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="ToggleSwitch:checked /template/ Border#PART_Background">
+            <Setter Property="Background" Value="#66FFFFFF"/>
+        </Style>
+
+        <Style Selector="ToggleSwitch:checked /template/ Panel#PART_MovingKnobs">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+
     </Application.Styles>
 
 

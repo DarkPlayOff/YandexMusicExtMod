@@ -89,6 +89,9 @@
                              Margin="0,10,0,0"
                              IsVisible="False"
                              IsIndeterminate="False" />
+
+                <ToggleSwitch x:Name="VersionToggle" Content="Обход asar integrity" 
+                              HorizontalAlignment="Center" Margin="0,10,0,0"/>
             </StackPanel>
 
             <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Bottom"
@@ -130,15 +133,30 @@
                     <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut" />
                 </Transitions>
             </Border.Transitions>
-            <Grid RowDefinitions="Auto, *" ColumnDefinitions="*, Auto">
-                <TextBlock Grid.Column="0" Text="История изменений" HorizontalAlignment="Center"
+            <Grid RowDefinitions="Auto, *, Auto" ColumnDefinitions="*">
+                <TextBlock Grid.Row="0" Text="История изменений" HorizontalAlignment="Center"
                            VerticalAlignment="Center" Margin="5" />
-                <Button Grid.Column="1" x:Name="ClosePatchNotesButton" Content="X" HorizontalAlignment="Right"
-                        VerticalAlignment="Top" Margin="5" Click="ClosePatchNotesButton_Click" />
-                <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" VerticalScrollBarVisibility="Auto" MaxHeight="140">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="140">
                     <TextBlock x:Name="PatchNotesContent" TextWrapping="Wrap" Margin="10" />
                 </ScrollViewer>
+                <Button Grid.Row="2" x:Name="ClosePatchNotesButton" Content="OK" HorizontalAlignment="Center"
+                        Margin="0,5,0,5" Click="ClosePatchNotesButton_Click" />
             </Grid>
+        </Border>
+
+        <Border x:Name="WarningPanel"
+                Background="#D9000000"
+                CornerRadius="8"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Width="300"
+                IsVisible="False">
+            <StackPanel Margin="20">
+                <TextBlock Text="Предупреждение" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"/>
+                <TextBlock Text="Не рекомендуется использовать обход asar integrity если всё работает! При активирововании необходимо очистить папку Яндекс Музыки с помощью кнопки" 
+                           TextWrapping="Wrap" Margin="0,10,0,0"/>
+                <Button x:Name="WarningOkButton" Content="OK" HorizontalAlignment="Center" Margin="0,15,0,0" Click="WarningOkButton_Click"/>
+            </StackPanel>
         </Border>
     </Panel>
 </Window>

@@ -30,4 +30,15 @@ public static class Update
 
         return response.Headers.Location?.ToString().Split('/').LastOrDefault()?.Replace("v", "");
     }
+
+    public static async Task<string?> GetLatestClientVersion()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://yandex.ru/music/desktop/main");
+        var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var match = Regex.Match(responseBody, "(https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_[\\d\\.]+.exe)");
+
+        return match.Success ? match.Groups[1].Value : null;
+    }
 }
