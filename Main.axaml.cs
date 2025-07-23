@@ -76,7 +76,7 @@ public partial class Main : Window
         _versionToggle = this.FindControl<ToggleSwitch>("VersionToggle");
         _warningPanel = this.FindControl<Border>("WarningPanel");
         _warningOkButton = this.FindControl<Button>("WarningOkButton");
-        _cleanButton = this.FindControl<Button>("CleanButton"); // Добавлено
+        _cleanButton = this.FindControl<Button>("CleanButton");
 
 
         DataContext = this;

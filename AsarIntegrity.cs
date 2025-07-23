@@ -23,9 +23,8 @@ public class HashPatcher
             var originalAsarPath = Path.Combine(resourcesPath, ORIGINAL_ASAR_FILENAME);
             var modifiedAsarPath = Path.Combine(resourcesPath, MODIFIED_ASAR_FILENAME);
 
-            // Параллельное вычисление хешей
-            var originalHashTask = CalculateAsarHeaderHashAsync(originalAsarPath);
-            var modifiedHashTask = CalculateAsarHeaderHashAsync(modifiedAsarPath);
+            var originalHashTask = CalculateAsarHeaderHash(originalAsarPath);
+            var modifiedHashTask = CalculateAsarHeaderHash(modifiedAsarPath);
             
             await Task.WhenAll(originalHashTask, modifiedHashTask).ConfigureAwait(false);
             
@@ -38,7 +37,7 @@ public class HashPatcher
             if (originalHash == modifiedHash)
                 return true;
 
-            return await PatchExeFileMemoryMappedAsync(exePath, originalHash, modifiedHash).ConfigureAwait(false);
+            return await PatchExeFileMemoryMapped(exePath, originalHash, modifiedHash).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException)
         {
@@ -50,7 +49,7 @@ public class HashPatcher
         }
     }
 
-    private async Task<bool> PatchExeFileMemoryMappedAsync(string exePath, string originalHash, string modifiedHash)
+    private async Task<bool> PatchExeFileMemoryMapped(string exePath, string originalHash, string modifiedHash)
     {
         var originalHashBytes = Encoding.ASCII.GetBytes(originalHash);
         var modifiedHashBytes = Encoding.ASCII.GetBytes(modifiedHash);
@@ -104,7 +103,7 @@ public class HashPatcher
                     accessor.ReadArray(0, buffer, 0, chunkSize);
                     var span = buffer.AsSpan(0, chunkSize);
 
-                    var offset = FindBytesOptimized(span, originalHashBytes);
+                    var offset = FindBytes(span, originalHashBytes);
                     if (offset != -1)
                     {
                         lock (resultLock)
@@ -115,7 +114,7 @@ public class HashPatcher
                         return;
                     }
 
-                    offset = FindBytesOptimized(span, modifiedHashBytes);
+                    offset = FindBytes(span, modifiedHashBytes);
                     if (offset != -1)
                     {
                         lock (resultLock)
@@ -139,7 +138,7 @@ public class HashPatcher
         return result;
     }
 
-    private async Task<string?> CalculateAsarHeaderHashAsync(string archivePath)
+    private async Task<string?> CalculateAsarHeaderHash(string archivePath)
     {
         try
         {
@@ -151,7 +150,6 @@ public class HashPatcher
 
             fileStream.Position = HEADER_OFFSET;
             
-            // Оптимизированное чтение для поиска конца JSON
             var estimatedSize = Math.Min((int)(fileStream.Length - HEADER_OFFSET), 1024 * 1024);
             var buffer = ArrayPool<byte>.Shared.Rent(estimatedSize);
             
@@ -169,7 +167,7 @@ public class HashPatcher
                     if (bytesRead == 0) break;
                     
                     totalRead += bytesRead;
-                    jsonEndIndex = FindJsonEndOptimized(buffer.AsSpan(0, totalRead));
+                    jsonEndIndex = FindJsonEnd(buffer.AsSpan(0, totalRead));
                 }
                 
                 if (jsonEndIndex == -1)
@@ -192,7 +190,7 @@ public class HashPatcher
         }
     }
 
-    private static int FindJsonEndOptimized(ReadOnlySpan<byte> data)
+    private static int FindJsonEnd(ReadOnlySpan<byte> data)
     {
         var depth = 0;
         var inString = false;
@@ -229,7 +227,7 @@ public class HashPatcher
         return -1;
     }
 
-    private static int FindBytesOptimized(ReadOnlySpan<byte> haystack, ReadOnlySpan<byte> needle)
+    private static int FindBytes(ReadOnlySpan<byte> haystack, ReadOnlySpan<byte> needle)
     {
         return haystack.IndexOf(needle);
     }
