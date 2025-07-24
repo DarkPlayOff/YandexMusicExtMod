@@ -11,7 +11,7 @@ internal static class Program
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs",
             "YandexMusic");
 
-    public static readonly string Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
+    public static readonly string Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
 
     [STAThread]
     public static void Main(string[] args)

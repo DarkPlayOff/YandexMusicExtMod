@@ -16,7 +16,7 @@ public static class Update
     {
         var request = new HttpRequestMessage(HttpMethod.Get,
             "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest");
-        var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+        var response = await httpClient.SendAsync(request);
 
         var versionString = response.Headers.Location?.ToString().Split('/').LastOrDefault();
         return versionString != null ? Regex.Replace(versionString, "[^0-9.]", "") : null;
@@ -26,7 +26,7 @@ public static class Update
     {
         var request = new HttpRequestMessage(HttpMethod.Get,
             $"{Program.RepoUrl}/releases/latest");
-        var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+        var response = await httpClient.SendAsync(request);
 
         return response.Headers.Location?.ToString().Split('/').LastOrDefault()?.Replace("v", "");
     }

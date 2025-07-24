@@ -78,6 +78,11 @@ public partial class Main : Window
         _warningOkButton = this.FindControl<Button>("WarningOkButton");
         _cleanButton = this.FindControl<Button>("CleanButton");
 
+        if (OperatingSystem.IsMacOS())
+        {
+            if (_versionToggle != null) _versionToggle.IsVisible = false;
+            if (_cleanButton != null) _cleanButton.IsVisible = false;
+        }
 
         DataContext = this;
     }
@@ -108,17 +113,24 @@ public partial class Main : Window
 
     private async Task UpdateUI()
     {
-        await CheckForUpdates();
-        await UpdateVersionInfo();
+        if (OperatingSystem.IsMacOS() && Utils.IsSipEnabled())
+        {
+            if (_patchButton != null) _patchButton.IsEnabled = false;
+            SetProgress(100, "Отключите SIP для продолжения");
+            return;
+        }
+
+        await CheckForUpdates().ConfigureAwait(false);
+        await UpdateVersionInfo().ConfigureAwait(false);
     }
 
     private async Task CheckForUpdates()
     {
         if (_updateButton == null) return;
 
-        var version = await Update.GetLatestAppVersion();
+        var version = await Update.GetLatestAppVersion().ConfigureAwait(false);
         var hasUpdate = !string.IsNullOrWhiteSpace(version) && version != Program.Version;
-        _updateButton.IsVisible = hasUpdate;
+        await Dispatcher.UIThread.InvokeAsync(() => _updateButton.IsVisible = hasUpdate);
     }
 
     private void SubscribeToPatcherLog()
@@ -161,50 +173,58 @@ public partial class Main : Window
             _patchButton, _runButton, _reportButton, _updateButton, _closeButton, _cleanButton
         }.Where(b => b != null).ToList();
 
-        var animation = new Animation
+        await Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            Duration = TimeSpan.FromMilliseconds(250),
-            Easing = new CubicEaseOut()
-        };
+            var animation = new Animation
+            {
+                Duration = TimeSpan.FromMilliseconds(250),
+                Easing = new CubicEaseOut()
+            };
 
-        if (show)
-        {
-            var visibleButtons = buttons.Where(b => b != null && b.IsVisible).ToList();
-            animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0.0) } });
-            animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1.0) } });
+            if (show)
+            {
+                var visibleButtons = buttons.Where(b => b != null && b.IsVisible).ToList();
+                animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0.0) } });
+                animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1.0) } });
 
-            var tasks = visibleButtons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
-            await Task.WhenAll(tasks);
-        }
-        else
-        {
-            animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 1.0) } });
-            animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 0.0) } });
+                var tasks = visibleButtons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
+                await Task.WhenAll(tasks);
+            }
+            else
+            {
+                animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 1.0) } });
+                animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 0.0) } });
 
-            var tasks = buttons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
-            await Task.WhenAll(tasks);
+                var tasks = buttons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
+                await Task.WhenAll(tasks);
 
-            foreach (var button in buttons)
-                if (button != null)
-                    button.IsVisible = false;
-        }
+                foreach (var button in buttons)
+                    if (button != null)
+                        button.IsVisible = false;
+            }
+        });
     }
 
     private async void PatchButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_patchButton != null) _patchButton.IsEnabled = false;
         if (_cleanButton != null) _cleanButton.IsVisible = false;
         if (_versionToggle != null) _versionToggle.IsVisible = false;
         await AnimateButtonsVisibility(false);
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
+
         try
         {
-            await KillYandexMusicProcess();
-            await Task.Delay(500);
-            await InstallMod();
-            var latestVersion = await VersionManager.GetLatestModVersion();
-            if (latestVersion != null) VersionManager.SetInstalledVersion(latestVersion);
-            await CreateDesktopShortcut();
-            _patchingCompleted = true;
+            await Task.Run(async () =>
+            {
+                await KillYandexMusicProcess();
+                await Task.Delay(500);
+                await InstallMod();
+                var latestVersion = await VersionManager.GetLatestModVersion();
+                if (latestVersion != null) VersionManager.SetInstalledVersion(latestVersion);
+                await CreateDesktopShortcut();
+                _patchingCompleted = true;
+            });
         }
         catch (Exception ex)
         {
@@ -212,7 +232,8 @@ public partial class Main : Window
         }
         finally
         {
-            await UpdateUIAfterPatch();
+            if (_patchButton != null) _patchButton.IsEnabled = true;
+            await UpdateUIAfterAction();
         }
     }
 
@@ -222,24 +243,37 @@ public partial class Main : Window
         {
             if (OperatingSystem.IsWindows())
                 Utils.CreateDesktopShortcut("Яндекс Музыка", Path.Combine(Program.ModPath, "Яндекс Музыка.exe"));
-        });
+        }).ConfigureAwait(false);
     }
 
-    private async Task UpdateUIAfterPatch()
+    private async Task UpdateUIAfterAction()
     {
-        await UpdateUI();
+        await UpdateUI().ConfigureAwait(false);
 
-        if (_downloadProgress != null && _patchingCompleted) SetProgress(100, "Ярлык создан на рабочем столе!");
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (_downloadProgress != null && _patchingCompleted)
+            {
+                var message = OperatingSystem.IsMacOS() 
+                    ? "Клиент установлен в папку программ!" 
+                    : "Ярлык создан на рабочем столе!";
+                SetProgress(100, message);
+            }
 
-        _patchButton?.SetCurrentValue(IsVisibleProperty, true);
-        _runButton?.SetCurrentValue(IsVisibleProperty, true);
-        _reportButton?.SetCurrentValue(IsVisibleProperty, true);
-        _closeButton?.SetCurrentValue(IsVisibleProperty, true);
-        if (_updateButton != null) _updateButton.IsVisible = false;
-        if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
-        if (_cleanButton != null) _cleanButton.IsVisible = true;
-        if (_versionToggle != null) _versionToggle.IsVisible = true;
-        await AnimateButtonsVisibility(true);
+            _patchButton?.SetCurrentValue(IsVisibleProperty, true);
+            _runButton?.SetCurrentValue(IsVisibleProperty, true);
+            _reportButton?.SetCurrentValue(IsVisibleProperty, true);
+            _closeButton?.SetCurrentValue(IsVisibleProperty, true);
+            if (_updateButton != null) _updateButton.IsVisible = false;
+            if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
+            if (!OperatingSystem.IsMacOS())
+            {
+                if (_cleanButton != null) _cleanButton.IsVisible = true;
+                if (_versionToggle != null) _versionToggle.IsVisible = true;
+            }
+        });
+
+        await AnimateButtonsVisibility(true).ConfigureAwait(false);
     }
 
     private async Task KillYandexMusicProcess()
@@ -254,23 +288,23 @@ public partial class Main : Window
                 catch
                 {
                 }
-        }).ConfigureAwait(false);
+        });
     }
 
     private async Task InstallMod()
     {
-        var useLatest = _versionToggle?.IsChecked ?? false;
+        var useLatest = OperatingSystem.IsMacOS() || (_versionToggle?.IsChecked ?? false);
 
         if (useLatest || !Patcher.IsModInstalled())
         {
-            await Patcher.DownloadLastestMusic(useLatest);
+            await Patcher.DownloadLastestMusic(useLatest).ConfigureAwait(false);
         }
         else
         {
             SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
         }
 
-        await Patcher.DownloadModifiedAsar(useLatest);
+        await Patcher.DownloadModifiedAsar(useLatest).ConfigureAwait(false);
         //Patcher.CleanupTempFiles();
     }
 
@@ -280,11 +314,18 @@ public partial class Main : Window
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            if (OperatingSystem.IsWindows())
             {
-                FileName = Path.Combine(Program.ModPath, "Яндекс Музыка.exe"),
-                UseShellExecute = true
-            });
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Path.Combine(Program.ModPath, "Яндекс Музыка.exe"),
+                    UseShellExecute = true
+                });
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start("open", "-a \"Яндекс Музыка\"");
+            }
         }
         catch (Exception ex)
         {
@@ -302,9 +343,11 @@ public partial class Main : Window
 
     private async void CleanButton_Click(object sender, RoutedEventArgs e)
     {
-        await Patcher.CleanInstall();
-        await UpdateUIAfterPatch();
+        await Patcher.CleanInstall().ConfigureAwait(false);
+        await UpdateUIAfterAction().ConfigureAwait(false);
     }
+
+    
 
     private void UpdateButton_Click(object sender, RoutedEventArgs e)
     {
@@ -314,30 +357,33 @@ public partial class Main : Window
     private async Task UpdateVersionInfo()
     {
         var installedVersion = VersionManager.GetInstalledVersion();
-        var latestVersion = await VersionManager.GetLatestModVersion();
+        var latestVersion = await VersionManager.GetLatestModVersion().ConfigureAwait(false);
 
-        if (_versionTextBlock != null)
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            if (installedVersion == "Не установлено")
-                _versionTextBlock.Text = string.Empty;
-            else if (installedVersion != latestVersion)
-                _versionTextBlock.Text =
-                    $"Доступно обновление мода: {installedVersion} -> {latestVersion ?? "Неизвестно"}";
-            else
-                _versionTextBlock.Text = $"Версия мода: {installedVersion}";
-        }
+            if (_versionTextBlock != null)
+            {
+                if (installedVersion == "Не установлено")
+                    _versionTextBlock.Text = string.Empty;
+                else if (installedVersion != latestVersion)
+                    _versionTextBlock.Text =
+                        $"Доступно обновление мода: {installedVersion} -> {latestVersion ?? "Неизвестно"}";
+                else
+                    _versionTextBlock.Text = $"Версия мода: {installedVersion}";
+            }
 
-        if (_patchButton != null)
-        {
-            if (installedVersion == "Не установлено")
-                _patchButton.Content = "Установить мод";
-            else if (installedVersion != latestVersion)
-                _patchButton.Content = "Обновить мод";
-            else
-                _patchButton.Content = "Переустановить мод";
-        }
+            if (_patchButton != null)
+            {
+                if (installedVersion == "Не установлено")
+                    _patchButton.Content = "Установить мод";
+                else if (installedVersion != latestVersion)
+                    _patchButton.Content = "Обновить мод";
+                else
+                    _patchButton.Content = "Переустановить мод";
+            }
 
-        if (_runButton != null) _runButton.IsEnabled = Patcher.IsModInstalled();
+            if (_runButton != null) _runButton.IsEnabled = Patcher.IsModInstalled();
+        });
     }
 
     private static void OpenUrlSafely(string url)
@@ -360,20 +406,23 @@ public partial class Main : Window
     {
         if (_patchNotesPanel == null || _patchNotesContent == null) return;
 
-        _patchNotesPanel.IsVisible = true;
-        _patchNotesPanel.Classes.Add("Visible");
-        _patchNotesContent.Text = "Загрузка...";
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _patchNotesPanel.IsVisible = true;
+            _patchNotesPanel.Classes.Add("Visible");
+            _patchNotesContent.Text = "Загрузка...";
+        });
 
         try
         {
             var patchNotesUrl =
                 "https://raw.githubusercontent.com/TheKing-OfTime/YandexMusicModClient/master/PATCHNOTES.md";
-            var markdownContent = await HttpClient.GetStringAsync(patchNotesUrl);
-            _patchNotesContent.Text = markdownContent;
+            var markdownContent = await HttpClient.GetStringAsync(patchNotesUrl).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(() => _patchNotesContent.Text = markdownContent);
         }
         catch (Exception ex)
         {
-            _patchNotesContent.Text = $"Не удалось загрузить изменения : {ex.Message}";
+            await Dispatcher.UIThread.InvokeAsync(() => _patchNotesContent.Text = $"Не удалось загрузить изменения : {ex.Message}");
         }
     }
 

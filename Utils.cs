@@ -1,4 +1,5 @@
-﻿using System.Runtime.Versioning;
+﻿using System.Diagnostics;
+using System.Runtime.Versioning;
 using WindowsShortcutFactory;
 
 namespace YandexMusicPatcherGui;
@@ -18,5 +19,33 @@ public static class Utils
             WorkingDirectory = targetDirectory
         };
         shortcut.Save(shortcutPath);
+    }
+
+    [SupportedOSPlatform("macos")]
+    public static bool IsSipEnabled()
+    {
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "csrutil",
+                    Arguments = "status",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return output.Contains("System Integrity Protection status: enabled.");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error checking SIP status: {e.Message}");
+            return true;
+        }
     }
 }

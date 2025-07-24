@@ -23,13 +23,8 @@ public class HashPatcher
             var originalAsarPath = Path.Combine(resourcesPath, ORIGINAL_ASAR_FILENAME);
             var modifiedAsarPath = Path.Combine(resourcesPath, MODIFIED_ASAR_FILENAME);
 
-            var originalHashTask = CalculateAsarHeaderHash(originalAsarPath);
-            var modifiedHashTask = CalculateAsarHeaderHash(modifiedAsarPath);
-            
-            await Task.WhenAll(originalHashTask, modifiedHashTask).ConfigureAwait(false);
-            
-            var originalHash = originalHashTask.Result;
-            var modifiedHash = modifiedHashTask.Result;
+            var originalHash = await CalculateAsarHeaderHash(originalAsarPath).ConfigureAwait(false);
+            var modifiedHash = await CalculateAsarHeaderHash(modifiedAsarPath).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(originalHash) || string.IsNullOrEmpty(modifiedHash))
                 return false;
@@ -74,7 +69,7 @@ public class HashPatcher
             }
 
             return false;
-        }).ConfigureAwait(false);
+        });
     }
 
     private (bool Found, bool IsOriginalHash, long Offset) ParallelSearchInMemoryMappedFile(
@@ -138,7 +133,7 @@ public class HashPatcher
         return result;
     }
 
-    private async Task<string?> CalculateAsarHeaderHash(string archivePath)
+    public async Task<string?> CalculateAsarHeaderHash(string archivePath)
     {
         try
         {
@@ -162,7 +157,7 @@ public class HashPatcher
                 {
                     var bytesRead = await fileStream.ReadAsync(
                         buffer.AsMemory(totalRead, Math.Min(65536, estimatedSize - totalRead))
-                    ).ConfigureAwait(false);
+                    );
                     
                     if (bytesRead == 0) break;
                     

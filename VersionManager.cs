@@ -25,6 +25,6 @@ public static class VersionManager
 
     public static async Task<string?> GetLatestModVersion()
     {
-        return await Update.GetLatestModVersion();
+        return await Update.GetLatestModVersion().ConfigureAwait(false);
     }
 }
