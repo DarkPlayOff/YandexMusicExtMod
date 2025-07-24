@@ -129,7 +129,11 @@ public partial class Main : Window
         if (_updateButton == null) return;
 
         var version = await Update.GetLatestAppVersion().ConfigureAwait(false);
-        var hasUpdate = !string.IsNullOrWhiteSpace(version) && version != Program.Version;
+        var hasUpdate = false;
+        if (System.Version.TryParse(version, out var githubVersion) && System.Version.TryParse(Program.Version, out var currentVersion))
+        {
+            hasUpdate = githubVersion > currentVersion;
+        }
         await Dispatcher.UIThread.InvokeAsync(() => _updateButton.IsVisible = hasUpdate);
     }
 
