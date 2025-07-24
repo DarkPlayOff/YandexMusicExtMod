@@ -11,7 +11,7 @@
 
 [![Последний релиз](https://img.shields.io/github/downloads/DarkPlayOff/YandexMusicExtMod/total?style=flat&label=%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C)](https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest/)
 
-## ♦️ Приимущества:
+## ♦️ Преимущества:
 
 ✔️ Работает без плюса
 
