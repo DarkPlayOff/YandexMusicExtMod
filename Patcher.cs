@@ -98,7 +98,7 @@ public static class Patcher
             await DownloadFileWithProgressAsync(latestUrl, dmgPath, "Загрузка клиента").ConfigureAwait(false);
 
             ReportProgress(100, "Распаковка DMG...");
-            await RunProcessAsync(CreateProcessStartInfo("hdiutil", $"attach -mountpoint \"{mountPath}\" \"{dmgPath}\""), "монтирования DMG").ConfigureAwait(false);
+            await RunProcessAsync(CreateProcessStartInfo("hdiutil", $"attach -mountpoint \"{mountPath}\" \"{dmgPath}\""), "Монтирования DMG").ConfigureAwait(false);
 
             var appPath = Path.Combine(mountPath, "Яндекс Музыка.app");
             var targetAppPath = Path.Combine("/Applications", "Яндекс Музыка.app");
@@ -108,9 +108,9 @@ public static class Patcher
                 Directory.Delete(targetAppPath, true);
             }
             
-            await RunProcessAsync(CreateProcessStartInfo("cp", $"-R \"{appPath}\" \"/Applications/\""), "копирования приложения").ConfigureAwait(false);
+            await RunProcessAsync(CreateProcessStartInfo("cp", $"-R \"{appPath}\" \"/Applications/\""), "Копирования приложения").ConfigureAwait(false);
             
-            await RunProcessAsync(CreateProcessStartInfo("hdiutil", $"detach \"{mountPath}\""), "размонтирования DMG").ConfigureAwait(false);
+            await RunProcessAsync(CreateProcessStartInfo("hdiutil", $"detach \"{mountPath}\""), "Размонтирование DMG").ConfigureAwait(false);
             
             ReportProgress(100, "Распаковка завершена");
         }

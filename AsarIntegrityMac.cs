@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Xml.Linq;
 using YandexMusicPatcherGui;
 
@@ -14,15 +13,12 @@ namespace YandexMusicPatcher
         private static readonly Dictionary<string, string> DEFAULT_YM_PATH = new()
         {
             ["darwin"] = Path.Combine("/Applications", "Яндекс Музыка.app"),
-            ["linux"] = "",
-            ["win32"] = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? "", "Programs", "YandexMusic")
         };
 
         private string YM_PATH, INFO_PLIST_PATH = null!, YM_ASAR_PATH = null!, oldYMHash = null!;
         private readonly string TMP_PATH, ASAR_TMP_BACKUP_PATH, YM_EXE_TMP_BACKUP_PATH, EXTRACTED_ENTITLEMENTS_PATH;
         private readonly string platform;
         private bool IsMac => platform == "darwin";
-        private bool IsWin => platform == "win32";
 
         public YMPatcher(string? tmpPath = null)
         {

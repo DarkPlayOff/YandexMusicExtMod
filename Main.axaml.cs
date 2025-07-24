@@ -210,21 +210,19 @@ public partial class Main : Window
         if (_patchButton != null) _patchButton.IsEnabled = false;
         if (_cleanButton != null) _cleanButton.IsVisible = false;
         if (_versionToggle != null) _versionToggle.IsVisible = false;
-        await AnimateButtonsVisibility(false);
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
+
+        await AnimateButtonsVisibility(false);
 
         try
         {
-            await Task.Run(async () =>
-            {
-                await KillYandexMusicProcess();
-                await Task.Delay(500);
-                await InstallMod();
-                var latestVersion = await VersionManager.GetLatestModVersion();
-                if (latestVersion != null) VersionManager.SetInstalledVersion(latestVersion);
-                await CreateDesktopShortcut();
-                _patchingCompleted = true;
-            });
+            await KillYandexMusicProcess();
+            await Task.Delay(500);
+            await InstallMod();
+            var latestVersion = await VersionManager.GetLatestModVersion();
+            if (latestVersion != null) VersionManager.SetInstalledVersion(latestVersion);
+            await CreateDesktopShortcut();
+            _patchingCompleted = true;
         }
         catch (Exception ex)
         {
@@ -248,14 +246,14 @@ public partial class Main : Window
 
     private async Task UpdateUIAfterAction()
     {
-        await UpdateUI().ConfigureAwait(false);
+        await UpdateUI();
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             if (_downloadProgress != null && _patchingCompleted)
             {
-                var message = OperatingSystem.IsMacOS() 
-                    ? "Клиент установлен в папку программ!" 
+                var message = OperatingSystem.IsMacOS()
+                    ? "Клиент установлен в папку программ!"
                     : "Ярлык создан на рабочем столе!";
                 SetProgress(100, message);
             }
@@ -271,9 +269,9 @@ public partial class Main : Window
                 if (_cleanButton != null) _cleanButton.IsVisible = true;
                 if (_versionToggle != null) _versionToggle.IsVisible = true;
             }
-        });
 
-        await AnimateButtonsVisibility(true).ConfigureAwait(false);
+            await AnimateButtonsVisibility(true);
+        });
     }
 
     private async Task KillYandexMusicProcess()
@@ -297,15 +295,17 @@ public partial class Main : Window
 
         if (useLatest || !Patcher.IsModInstalled())
         {
-            await Patcher.DownloadLastestMusic(useLatest).ConfigureAwait(false);
+            await Patcher.DownloadLastestMusic(useLatest);
         }
         else
         {
-            SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
+            });
         }
 
-        await Patcher.DownloadModifiedAsar(useLatest).ConfigureAwait(false);
-        //Patcher.CleanupTempFiles();
+        await Patcher.DownloadModifiedAsar(useLatest);
     }
 
     private void RunButton_Click(object sender, RoutedEventArgs e)
