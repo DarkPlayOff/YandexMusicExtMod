@@ -30,10 +30,11 @@ public class ProgressToWidthConverter : IMultiValueConverter
 
 public partial class Main : Window
 {
-    private static readonly HttpClient HttpClient = new();
+    private readonly Button? _cleanButton;
     private readonly Button? _closeButton;
     private readonly Button? _closePatchNotesButton;
     private readonly ProgressBar? _downloadProgress;
+    private readonly HttpClient _httpClient = Utils.HttpClient;
     private readonly Button? _patchButton;
     private readonly Button? _patchNotesButton;
     private readonly TextBlock? _patchNotesContent;
@@ -41,11 +42,10 @@ public partial class Main : Window
     private readonly Button? _reportButton;
     private readonly Button? _runButton;
     private readonly Button? _updateButton;
-    private readonly Button? _cleanButton;
     private readonly TextBlock? _versionTextBlock;
     private readonly ToggleSwitch? _versionToggle;
-    private readonly Border? _warningPanel;
     private readonly Button? _warningOkButton;
+    private readonly Border? _warningPanel;
     private bool _patchingCompleted;
 
 
@@ -130,10 +130,8 @@ public partial class Main : Window
 
         var version = await Update.GetLatestAppVersion().ConfigureAwait(false);
         var hasUpdate = false;
-        if (System.Version.TryParse(version, out var githubVersion) && System.Version.TryParse(Program.Version, out var currentVersion))
-        {
-            hasUpdate = githubVersion > currentVersion;
-        }
+        if (Version.TryParse(version, out var githubVersion) &&
+            Version.TryParse(Program.Version, out var currentVersion)) hasUpdate = githubVersion > currentVersion;
         await Dispatcher.UIThread.InvokeAsync(() => _updateButton.IsVisible = hasUpdate);
     }
 
@@ -188,16 +186,20 @@ public partial class Main : Window
             if (show)
             {
                 var visibleButtons = buttons.Where(b => b != null && b.IsVisible).ToList();
-                animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0.0) } });
-                animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1.0) } });
+                animation.Children.Add(
+                    new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0.0) } });
+                animation.Children.Add(
+                    new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1.0) } });
 
                 var tasks = visibleButtons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
                 await Task.WhenAll(tasks);
             }
             else
             {
-                animation.Children.Add(new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 1.0) } });
-                animation.Children.Add(new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 0.0) } });
+                animation.Children.Add(
+                    new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 1.0) } });
+                animation.Children.Add(
+                    new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 0.0) } });
 
                 var tasks = buttons.Select(b => animation.RunAsync(b!, CancellationToken.None)).ToList();
                 await Task.WhenAll(tasks);
@@ -230,7 +232,7 @@ public partial class Main : Window
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка запуска патчера: {ex}");
+            SetProgress(100, $"Ошибка: {ex.Message}");
         }
         finally
         {
@@ -298,16 +300,12 @@ public partial class Main : Window
         var useLatest = OperatingSystem.IsMacOS() || (_versionToggle?.IsChecked ?? false);
 
         if (useLatest || !Patcher.IsModInstalled())
-        {
             await Patcher.DownloadLastestMusic(useLatest);
-        }
         else
-        {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
             });
-        }
 
         await Patcher.DownloadModifiedAsar(useLatest);
     }
@@ -319,17 +317,12 @@ public partial class Main : Window
         try
         {
             if (OperatingSystem.IsWindows())
-            {
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = Path.Combine(Program.ModPath, "Яндекс Музыка.exe"),
                     UseShellExecute = true
                 });
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                Process.Start("open", "-a \"Яндекс Музыка\"");
-            }
+            else if (OperatingSystem.IsMacOS()) Process.Start("open", "-a \"Яндекс Музыка\"");
         }
         catch (Exception ex)
         {
@@ -347,11 +340,17 @@ public partial class Main : Window
 
     private async void CleanButton_Click(object sender, RoutedEventArgs e)
     {
-        await Patcher.CleanInstall().ConfigureAwait(false);
-        await UpdateUIAfterAction().ConfigureAwait(false);
+        try
+        {
+            await Patcher.CleanInstall().ConfigureAwait(false);
+            await UpdateUIAfterAction().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            SetProgress(100, $"Ошибка очистки: {ex.Message}");
+        }
     }
 
-    
 
     private void UpdateButton_Click(object sender, RoutedEventArgs e)
     {
@@ -410,23 +409,24 @@ public partial class Main : Window
     {
         if (_patchNotesPanel == null || _patchNotesContent == null) return;
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            _patchNotesPanel.IsVisible = true;
-            _patchNotesPanel.Classes.Add("Visible");
-            _patchNotesContent.Text = "Загрузка...";
-        });
-
         try
         {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _patchNotesPanel.IsVisible = true;
+                _patchNotesPanel.Classes.Add("Visible");
+                _patchNotesContent.Text = "Загрузка...";
+            });
+
             var patchNotesUrl =
                 "https://raw.githubusercontent.com/TheKing-OfTime/YandexMusicModClient/master/PATCHNOTES.md";
-            var markdownContent = await HttpClient.GetStringAsync(patchNotesUrl).ConfigureAwait(false);
+            var markdownContent = await _httpClient.GetStringAsync(patchNotesUrl).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(() => _patchNotesContent.Text = markdownContent);
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => _patchNotesContent.Text = $"Не удалось загрузить изменения : {ex.Message}");
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _patchNotesContent.Text = $"Не удалось загрузить изменения: {ex.Message}");
         }
     }
 
@@ -439,17 +439,11 @@ public partial class Main : Window
 
     private void VersionToggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
     {
-        if (_versionToggle?.IsChecked == true && _warningPanel != null)
-        {
-            _warningPanel.IsVisible = true;
-        }
+        if (_versionToggle?.IsChecked == true && _warningPanel != null) _warningPanel.IsVisible = true;
     }
 
     private void WarningOkButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (_warningPanel != null)
-        {
-            _warningPanel.IsVisible = false;
-        }
+        if (_warningPanel != null) _warningPanel.IsVisible = false;
     }
 }

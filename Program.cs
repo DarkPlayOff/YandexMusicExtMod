@@ -10,7 +10,6 @@ internal static class Program
     public static readonly string ModPath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs",
             "YandexMusic");
-
     public static readonly string Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
 
     [STAThread]

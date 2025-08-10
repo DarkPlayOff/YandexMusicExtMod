@@ -4,13 +4,8 @@ namespace YandexMusicPatcherGui;
 
 public static class Update
 {
-    private static readonly HttpClient httpClient;
+    private static readonly HttpClient httpClient = Utils.HttpClient;
 
-    static Update()
-    {
-        var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        httpClient = new HttpClient(handler);
-    }
 
     public static async Task<string?> GetLatestModVersion()
     {

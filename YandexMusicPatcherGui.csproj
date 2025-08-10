@@ -31,7 +31,7 @@
 
         <PackageReference Include="WindowsShortcutFactory" Version="1.2.0"/>
         <PackageReference Include="System.Net.Http" Version="4.3.4"/>
-        
+
     </ItemGroup>
 
     <ItemGroup Condition="'$(Configuration)' == 'Debug'">
@@ -54,9 +54,9 @@
 
     <ItemGroup>
         <Compile Update="**\*.axaml.cs">
-          <DependentUpon>%(Filename)</DependentUpon>
+            <DependentUpon>%(Filename)</DependentUpon>
         </Compile>
         <AvaloniaResource Include="Assets\**"/>
     </ItemGroup>
-    
+
 </Project>

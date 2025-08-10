@@ -291,10 +291,10 @@ Devtools по умолчанию отключены. Чтобы включить
 
  <details>
  <summary>Windows</summary>
- 
+
 1. [Скачать последнюю версию](https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest)  или
    собрать приложение самостоятельно из исходников
-2. После  запустить YandexMusicPatcher
+2. После запустить YandexMusicPatcher
 3. Нажать на кнопку "Установить мод"
 4. На рабочем столе появится ярлык для запуска
 5. После запуска приложение само перекинет вас на страницу авторизации
@@ -303,7 +303,9 @@ Devtools по умолчанию отключены. Чтобы включить
 <details>
 <summary>MacOS</summary>
 
-1. Отключите [SIP](https://developer.apple.com/documentation/security/disabling-and-enabling-system-integrity-protection)
+1.
+
+Отключите [SIP](https://developer.apple.com/documentation/security/disabling-and-enabling-system-integrity-protection)
 2. [Скачайте последнюю версию](https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest)  
    или соберите приложение самостоятельно из исходников.
 3. Запустите `YandexMusicPatcher`.

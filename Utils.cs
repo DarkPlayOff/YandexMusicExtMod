@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
+using System.Net;
 using System.Runtime.Versioning;
 using WindowsShortcutFactory;
 
@@ -6,6 +7,23 @@ namespace YandexMusicPatcherGui;
 
 public static class Utils
 {
+    public static readonly HttpClient HttpClient;
+
+    static Utils()
+    {
+        var handler = new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            AllowAutoRedirect = true
+        };
+
+        HttpClient = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromSeconds(45)
+        };
+        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36");
+    }
+
     [SupportedOSPlatform("windows")]
     public static void CreateDesktopShortcut(string linkName, string path)
     {
