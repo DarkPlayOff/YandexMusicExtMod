@@ -43,9 +43,6 @@ public partial class Main : Window
     private readonly Button? _runButton;
     private readonly Button? _updateButton;
     private readonly TextBlock? _versionTextBlock;
-    private readonly ToggleSwitch? _versionToggle;
-    private readonly Button? _warningOkButton;
-    private readonly Border? _warningPanel;
     private bool _patchingCompleted;
 
 
@@ -73,17 +70,7 @@ public partial class Main : Window
         _patchNotesContent = this.FindControl<TextBlock>("PatchNotesContent");
         _patchNotesButton = this.FindControl<Button>("PatchNotesButton");
         _closePatchNotesButton = this.FindControl<Button>("ClosePatchNotesButton");
-        _versionToggle = this.FindControl<ToggleSwitch>("VersionToggle");
-        _warningPanel = this.FindControl<Border>("WarningPanel");
-        _warningOkButton = this.FindControl<Button>("WarningOkButton");
         _cleanButton = this.FindControl<Button>("CleanButton");
-
-        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
-        {
-            if (_versionToggle != null) _versionToggle.IsVisible = false;
-            if (_cleanButton != null) _cleanButton.IsVisible = false;
-            if (_runButton != null) _runButton.IsVisible = false;
-        }
 
         if (OperatingSystem.IsLinux())
         {
@@ -114,8 +101,6 @@ public partial class Main : Window
     {
         base.OnOpened(e);
         SubscribeToPatcherLog();
-        if (_versionToggle != null) _versionToggle.IsCheckedChanged += VersionToggle_IsCheckedChanged;
-        if (_warningOkButton != null) _warningOkButton.Click += WarningOkButton_Click;
         Dispatcher.UIThread.InvokeAsync(UpdateUI);
     }
 
@@ -245,7 +230,6 @@ public partial class Main : Window
     {
         if (_patchButton != null) _patchButton.IsEnabled = false;
         if (_cleanButton != null) _cleanButton.IsVisible = false;
-        if (_versionToggle != null) _versionToggle.IsVisible = false;
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
 
         await AnimateButtonsVisibility(false);
@@ -315,7 +299,6 @@ public partial class Main : Window
             if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
             {
                 if (_cleanButton != null) _cleanButton.IsVisible = true;
-                if (_versionToggle != null) _versionToggle.IsVisible = true;
             }
 
             await AnimateButtonsVisibility(true);
@@ -339,21 +322,8 @@ public partial class Main : Window
 
     private async Task InstallMod()
     {
-        var useLatest = OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() || (_versionToggle?.IsChecked ?? false);
-
-        if (useLatest || !Patcher.IsModInstalled())
-        {
-            await Patcher.DownloadLastestMusic(useLatest);
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
-            });
-        }
-        
-        await Patcher.DownloadModifiedAsar(useLatest);
+        await Patcher.DownloadLastestMusic();
+        await Patcher.DownloadModifiedAsar();
     }
 
     private void RunButton_Click(object sender, RoutedEventArgs e)
@@ -487,13 +457,4 @@ public partial class Main : Window
         _patchNotesPanel.Classes.Remove("Visible");
     }
 
-    private void VersionToggle_IsCheckedChanged(object? sender, RoutedEventArgs e)
-    {
-        if (_versionToggle?.IsChecked == true && _warningPanel != null) _warningPanel.IsVisible = true;
-    }
-
-    private void WarningOkButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (_warningPanel != null) _warningPanel.IsVisible = false;
-    }
 }

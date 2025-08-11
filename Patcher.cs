@@ -46,7 +46,7 @@ public static class Patcher
         return false;
     }
 
-    public static async Task DownloadLastestMusic(bool useLatest)
+    public static async Task DownloadLastestMusic()
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         Directory.CreateDirectory(tempFolder);
@@ -54,7 +54,7 @@ public static class Patcher
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            await DownloadLatestMusicWindows(useLatest, tempFolder);
+            await DownloadLatestMusicWindows(tempFolder);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
@@ -66,14 +66,9 @@ public static class Patcher
         }
     }
 
-    private static async Task DownloadLatestMusicWindows(bool useLatest, string tempFolder)
+    private static async Task DownloadLatestMusicWindows(string tempFolder)
     {
-        var latestUrl = useLatest
-            ? "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe"
-            : "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music_x64_5.58.0.exe";
-
-        if (string.IsNullOrEmpty(latestUrl))
-            throw new Exception("Не удалось получить URL последней версии клиента.");
+        const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe";
 
         var stableExePath = Path.Combine(tempFolder, "stable.exe");
         await DownloadFileWithProgress(latestUrl, stableExePath, "Загрузка клиента");
@@ -145,7 +140,7 @@ public static class Patcher
         return sevenZipPath;
     }
 
-    public static async Task DownloadModifiedAsar(bool useLatest)
+    public static async Task DownloadModifiedAsar()
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         var downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
