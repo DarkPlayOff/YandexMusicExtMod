@@ -78,10 +78,33 @@ public partial class Main : Window
         _warningOkButton = this.FindControl<Button>("WarningOkButton");
         _cleanButton = this.FindControl<Button>("CleanButton");
 
-        if (OperatingSystem.IsMacOS())
+        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
             if (_versionToggle != null) _versionToggle.IsVisible = false;
             if (_cleanButton != null) _cleanButton.IsVisible = false;
+            if (_runButton != null) _runButton.IsVisible = false;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            SystemDecorations = SystemDecorations.None;
+            TransparencyLevelHint = new[] { WindowTransparencyLevel.Blur, WindowTransparencyLevel.None };
+            Background = new SolidColorBrush(Color.Parse("#CC000000"));
+            if (_patchButton != null)
+            {
+                _patchButton.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+            }
+            if (_runButton != null)
+            {
+                _runButton.IsVisible = false;
+            }
+        }
+        else
+        {
+            if (_patchButton != null)
+            {
+                _patchButton.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+            }
         }
 
         DataContext = this;
@@ -113,6 +136,13 @@ public partial class Main : Window
 
     private async Task UpdateUI()
     {
+        if (OperatingSystem.IsLinux() && Environment.UserName != "root")
+        {
+            if (_patchButton != null) _patchButton.IsEnabled = false;
+            SetProgress(100, "Для установки на Linux требуются права root. Пожалуйста, перезапустите программу с 'sudo'.");
+            return;
+        }
+
         if (OperatingSystem.IsMacOS() && Utils.IsSipEnabled())
         {
             if (_patchButton != null) _patchButton.IsEnabled = false;
@@ -238,6 +268,7 @@ public partial class Main : Window
         {
             if (_patchButton != null) _patchButton.IsEnabled = true;
             await UpdateUIAfterAction();
+            Patcher.CleanupTempFiles();
         }
     }
 
@@ -246,7 +277,9 @@ public partial class Main : Window
         await Task.Run(() =>
         {
             if (OperatingSystem.IsWindows())
+            {
                 Utils.CreateDesktopShortcut("Яндекс Музыка", Path.Combine(Program.ModPath, "Яндекс Музыка.exe"));
+            }
         }).ConfigureAwait(false);
     }
 
@@ -258,19 +291,28 @@ public partial class Main : Window
         {
             if (_downloadProgress != null && _patchingCompleted)
             {
-                var message = OperatingSystem.IsMacOS()
-                    ? "Клиент установлен в папку программ!"
-                    : "Ярлык создан на рабочем столе!";
+                var message = "Ярлык создан на рабочем столе!";
+                if (OperatingSystem.IsMacOS())
+                {
+                    message = "Клиент установлен в папку программ!";
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    message = "Пакет установлен!.";
+                }
                 SetProgress(100, message);
             }
 
             _patchButton?.SetCurrentValue(IsVisibleProperty, true);
-            _runButton?.SetCurrentValue(IsVisibleProperty, true);
+            if (!OperatingSystem.IsLinux())
+            {
+                _runButton?.SetCurrentValue(IsVisibleProperty, true);
+            }
             _reportButton?.SetCurrentValue(IsVisibleProperty, true);
             _closeButton?.SetCurrentValue(IsVisibleProperty, true);
             if (_updateButton != null) _updateButton.IsVisible = false;
             if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
-            if (!OperatingSystem.IsMacOS())
+            if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
             {
                 if (_cleanButton != null) _cleanButton.IsVisible = true;
                 if (_versionToggle != null) _versionToggle.IsVisible = true;
@@ -297,16 +339,20 @@ public partial class Main : Window
 
     private async Task InstallMod()
     {
-        var useLatest = OperatingSystem.IsMacOS() || (_versionToggle?.IsChecked ?? false);
+        var useLatest = OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() || (_versionToggle?.IsChecked ?? false);
 
         if (useLatest || !Patcher.IsModInstalled())
+        {
             await Patcher.DownloadLastestMusic(useLatest);
+        }
         else
+        {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 SetProgress(100, "Клиент Яндекс Музыки уже установлен, пропуск загрузки.");
             });
-
+        }
+        
         await Patcher.DownloadModifiedAsar(useLatest);
     }
 
@@ -322,7 +368,10 @@ public partial class Main : Window
                     FileName = Path.Combine(Program.ModPath, "Яндекс Музыка.exe"),
                     UseShellExecute = true
                 });
-            else if (OperatingSystem.IsMacOS()) Process.Start("open", "-a \"Яндекс Музыка\"");
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start("open", "-a \"Яндекс Музыка\"");
+            }
         }
         catch (Exception ex)
         {
@@ -404,6 +453,7 @@ public partial class Main : Window
             Console.WriteLine($"Не удалось открыть ссылку {url}: {ex}");
         }
     }
+
 
     private async void PatchNotesButton_Click(object? sender, RoutedEventArgs e)
     {

@@ -38,6 +38,11 @@ public static class Patcher
             return Directory.Exists(targetPath) && File.Exists(exePath) && File.Exists(asarPath);
         }
 
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return Directory.Exists("/opt/Яндекс Музыка");
+        }
+
         return false;
     }
 
@@ -54,6 +59,10 @@ public static class Patcher
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             await DownloadLatestMusicMac(tempFolder);
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            await DownloadLatestMusicLinux(tempFolder);
         }
     }
 
@@ -99,6 +108,20 @@ public static class Patcher
         ReportProgress(100, "Распаковка завершена");
     }
 
+    private static async Task DownloadLatestMusicLinux(string tempFolder)
+    {
+        var debPath = Path.Combine(tempFolder, "Yandex_Music.deb");
+        const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.deb";
+        await DownloadFileWithProgress(latestUrl, debPath, "Загрузка клиента");
+        
+        ReportProgress(50, "Установка .deb пакета...");
+        var installCommand = $"apt install -y ./{Path.GetFileName(debPath)}";
+        var processInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{installCommand.Replace("\"", "\\\"")}\"");
+        processInfo.WorkingDirectory = tempFolder;
+        await RunProcess(processInfo, "Установка .deb пакета");
+        ReportProgress(100, "Пакет установлен");
+    }
+
     private static async Task<string> Ensure7ZipExists(string tempFolder)
     {
         var sevenZipPath = Path.Combine(tempFolder, "7za.exe");
@@ -127,50 +150,61 @@ public static class Patcher
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         var downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
 
-        string resourcesPath;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            resourcesPath = Path.Combine(Program.ModPath, "resources");
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            var appPath = Path.Combine("/Applications", YandexMusicAppName);
-            resourcesPath = Path.Combine(appPath, "Contents", "Resources");
-        }
-        else
-        {
-            throw new PlatformNotSupportedException("This operation is only supported on Windows and macOS.");
-        }
-
-        var asarPath = Path.Combine(resourcesPath, "app.asar");
-        var oldAsarPath = Path.Combine(resourcesPath,
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "app.asar.bak" : "oldapp.asar");
-
-        if (File.Exists(asarPath))
-        {
-            if (File.Exists(oldAsarPath)) File.Delete(oldAsarPath);
-            File.Move(asarPath, oldAsarPath);
-        }
-
-        Directory.CreateDirectory(resourcesPath);
-        Directory.CreateDirectory(tempFolder);
-
         await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода");
-        await ExtractGzip(downloadedGzFile, resourcesPath, tempFolder);
-
-        var patcher = AsarIntegrity.CreatePatcher();
-        ReportProgress(50, "Обход проверки целостности asar...");
-        var success = await patcher.BypassAsarIntegrity();
-        if (success)
+        
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            ReportProgress(100, "Проверка целостности asar успешно обойдена");
-        }
-        else
-        {
-            ReportProgress(-1, "Ошибка обхода проверки целостности asar");
-        }
+            var asarPath = "/opt/Яндекс Музыка/resources/app.asar";
+            var tempAsarPath = Path.Combine(tempFolder, "app.asar");
 
-        CleanupTempFiles();
+            var gunzipCommand = $"gunzip -c \"{downloadedGzFile}\" > \"{tempAsarPath}\"";
+            var gunzipProcessInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{gunzipCommand.Replace("\"", "\\\"")}\"");
+            await RunProcess(gunzipProcessInfo, "распаковки asar.gz");
+
+            ReportProgress(50, "Замена asar...");
+            var moveCommand = $"mv -f \"{tempAsarPath}\" \"{asarPath}\"";
+            var moveProcessInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{moveCommand.Replace("\"", "\\\"")}\"");
+            await RunProcess(moveProcessInfo, "замены asar");
+            ReportProgress(100, "Asar заменен");
+        }
+        else // Windows and OSX
+        {
+            string resourcesPath;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                resourcesPath = Path.Combine(Program.ModPath, "resources");
+            }
+            else // OSX
+            {
+                var appPath = Path.Combine("/Applications", YandexMusicAppName);
+                resourcesPath = Path.Combine(appPath, "Contents", "Resources");
+            }
+
+            var asarPath = Path.Combine(resourcesPath, "app.asar");
+            var oldAsarPath = Path.Combine(resourcesPath,
+                RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "app.asar.bak" : "oldapp.asar");
+
+            if (File.Exists(asarPath))
+            {
+                if (File.Exists(oldAsarPath)) File.Delete(oldAsarPath);
+                File.Move(asarPath, oldAsarPath);
+            }
+
+            Directory.CreateDirectory(resourcesPath);
+            await ExtractGzip(downloadedGzFile, resourcesPath, tempFolder);
+            
+            var patcher = AsarIntegrity.CreatePatcher();
+            ReportProgress(50, "Обход проверки целостности asar...");
+            var success = await patcher.BypassAsarIntegrity();
+            if (success)
+            {
+                ReportProgress(100, "Проверка целостности asar успешно обойдена");
+            }
+            else
+            {
+                ReportProgress(-1, "Ошибка обхода проверки целостности asar");
+            }
+        }
     }
 
     private static async Task ExtractArchive(string archivePath, string outputPath, string tempFolder)
@@ -183,18 +217,9 @@ public static class Patcher
     private static async Task ExtractGzip(string gzipPath, string outputPath, string tempFolder)
     {
         var outputFilePath = Path.Combine(outputPath, "app.asar");
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            var command = $"gunzip -c \"{gzipPath}\" > \"{outputFilePath}\"";
-            var processInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{command.Replace("\"", "\\\"")}\"");
-            await RunProcess(processInfo, "gzip архива");
-        }
-        else
-        {
-            var sevenZipPath = await Ensure7ZipExists(tempFolder);
-            var processInfo = CreateProcessStartInfo(sevenZipPath, $"x \"{gzipPath}\" -o\"{outputPath}\" -y");
-            await RunProcess(processInfo, "gzip архива");
-        }
+        var sevenZipPath = await Ensure7ZipExists(tempFolder);
+        var processInfo = CreateProcessStartInfo(sevenZipPath, $"x \"{gzipPath}\" -o\"{outputPath}\" -y");
+        await RunProcess(processInfo, "gzip архива");
     }
 
     private static ProcessStartInfo CreateProcessStartInfo(string executablePath, string arguments)
@@ -226,7 +251,7 @@ public static class Patcher
             var error = await process.StandardError.ReadToEndAsync();
             if (string.IsNullOrEmpty(error))
                 error = await process.StandardOutput.ReadToEndAsync();
-            throw new Exception($"Ошибка распаковки {operationType}. Код выхода: {process.ExitCode}. {error}");
+            throw new Exception($"Ошибка выполнения операции '{operationType}'. Код выхода: {process.ExitCode}. {error}");
         }
     }
 
