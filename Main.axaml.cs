@@ -386,7 +386,7 @@ public partial class Main : Window
             if (_versionTextBlock != null)
             {
                 if (installedVersion == "Не установлено")
-                    _versionTextBlock.Text = string.Empty;
+                    _versionTextBlock.Text = $"Версия мода: {latestVersion ?? "Неизвестно"}";
                 else if (installedVersion != latestVersion)
                     _versionTextBlock.Text =
                         $"Доступно обновление мода: {installedVersion} -> {latestVersion ?? "Неизвестно"}";

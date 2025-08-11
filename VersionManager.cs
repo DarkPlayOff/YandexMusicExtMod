@@ -20,6 +20,7 @@ public static class VersionManager
     public static void SetInstalledVersion(string version)
     {
         var cleanedVersion = Regex.Replace(version, "[^0-9.]", "");
+        Directory.CreateDirectory(Program.ModPath);
         File.WriteAllText(VersionFilePath, cleanedVersion);
     }
 
