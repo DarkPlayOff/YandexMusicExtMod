@@ -30,13 +30,10 @@ public class ProgressToWidthConverter : IMultiValueConverter
 
 public partial class Main : Window
 {
-    private readonly Button? _cleanButton;
     private readonly Button? _closeButton;
-    private readonly Button? _closePatchNotesButton;
     private readonly ProgressBar? _downloadProgress;
     private readonly HttpClient _httpClient = Utils.HttpClient;
     private readonly Button? _patchButton;
-    private readonly Button? _patchNotesButton;
     private readonly TextBlock? _patchNotesContent;
     private readonly Border? _patchNotesPanel;
     private readonly Button? _reportButton;
@@ -68,9 +65,6 @@ public partial class Main : Window
         _versionTextBlock = this.FindControl<TextBlock>("VersionTextBlock");
         _patchNotesPanel = this.FindControl<Border>("PatchNotesPanel");
         _patchNotesContent = this.FindControl<TextBlock>("PatchNotesContent");
-        _patchNotesButton = this.FindControl<Button>("PatchNotesButton");
-        _closePatchNotesButton = this.FindControl<Button>("ClosePatchNotesButton");
-        _cleanButton = this.FindControl<Button>("CleanButton");
 
         if (OperatingSystem.IsLinux())
         {
@@ -187,7 +181,7 @@ public partial class Main : Window
     {
         var buttons = new Control?[]
         {
-            _patchButton, _runButton, _reportButton, _updateButton, _closeButton, _cleanButton
+            _patchButton, _runButton, _reportButton, _updateButton, _closeButton,
         }.Where(b => b != null).ToList();
 
         await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -229,7 +223,6 @@ public partial class Main : Window
     private async void PatchButton_Click(object sender, RoutedEventArgs e)
     {
         if (_patchButton != null) _patchButton.IsEnabled = false;
-        if (_cleanButton != null) _cleanButton.IsVisible = false;
         if (_versionTextBlock != null) _versionTextBlock.IsVisible = false;
 
         await AnimateButtonsVisibility(false);
@@ -297,9 +290,6 @@ public partial class Main : Window
             if (_updateButton != null) _updateButton.IsVisible = false;
             if (_versionTextBlock != null) _versionTextBlock.IsVisible = true;
             if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
-            {
-                if (_cleanButton != null) _cleanButton.IsVisible = true;
-            }
 
             await AnimateButtonsVisibility(true);
         });
@@ -354,20 +344,7 @@ public partial class Main : Window
     private void ReportButton_Click(object sender, RoutedEventArgs e)
     {
         OpenUrlSafely(
-            "https://github.com/DarkPlayOff/YandexMusicExtMod/issues/new?assignees=&labels=bug&template=bug_report.yml");
-    }
-
-    private async void CleanButton_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await Patcher.CleanInstall().ConfigureAwait(false);
-            await UpdateUIAfterAction().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            SetProgress(100, $"Ошибка очистки: {ex.Message}");
-        }
+"https://github.com/DarkPlayOff/YandexMusicExtMod/issues/new?assignees=&labels=bug&template=bug_report.yml");
     }
 
 

@@ -104,12 +104,6 @@
                             Margin="0,0,10,0" IsVisible="False" Click="UpdateButton_Click" />
                     <Button x:Name="ReportButton" Content="Сообщить об ошибке" Width="140" Height="25" FontSize="13"
                             Click="ReportButton_Click" />
-                    <Button x:Name="CleanButton" Content="🗑" Width="25" Height="25" FontSize="14" Margin="10,0,0,0"
-                            Click="CleanButton_Click">
-                        <ToolTip.Tip>
-                            <TextBlock Text="Очистить папку с Яндекс Музыкой" />
-                        </ToolTip.Tip>
-                    </Button>
                 </StackPanel>
             </StackPanel>
 

@@ -162,14 +162,14 @@ public static class Patcher
             await RunProcess(moveProcessInfo, "замены asar");
             ReportProgress(100, "Asar заменен");
         }
-        else // Windows and OSX
+        else
         {
             string resourcesPath;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 resourcesPath = Path.Combine(Program.ModPath, "resources");
             }
-            else // OSX
+            else
             {
                 var appPath = Path.Combine("/Applications", YandexMusicAppName);
                 resourcesPath = Path.Combine(appPath, "Contents", "Resources");
