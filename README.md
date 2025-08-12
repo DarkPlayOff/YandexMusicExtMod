@@ -312,8 +312,7 @@ Devtools по умолчанию отключены. Чтобы включить
  <details>
  <summary>Linux</summary>
 
-> [!NOTE]  
-> Поддерживаются только основанные на debian дистрибутивы
+**Поддерживаются только основанные на debian дистрибутивы**
 
 1. [Скачать последнюю версию](https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest)
 2. После запустить YandexMusicPatcher-linux через терминал с **sudo**
