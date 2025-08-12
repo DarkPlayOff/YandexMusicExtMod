@@ -162,7 +162,7 @@ public static class Patcher
             var moveCommand = $"mv -f \"{tempAsarPath}\" \"{asarPath}\"";
             var moveProcessInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{moveCommand.Replace("\"", "\\\"")}\"");
             await RunProcess(moveProcessInfo, "замены asar");
-            ReportProgress(75, "Asar заменен");
+            ReportProgress(100, "Готово!");
 
             var patcher = AsarIntegrity.CreatePatcher();
             ReportProgress(80, "Обход проверки целостности asar...");
