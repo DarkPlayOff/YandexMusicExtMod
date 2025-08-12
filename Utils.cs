@@ -1,9 +1,28 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Runtime.Versioning;
+using Avalonia.Data.Converters;
 using WindowsShortcutFactory;
 
 namespace YandexMusicPatcherGui;
+
+public class ProgressToWidthConverter : IValueConverter
+{
+    public static readonly ProgressToWidthConverter Instance = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not (double progress and >= 0 and <= 100) || parameter is not double width) return 0.0;
+
+        return progress / 100.0 * width;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
 
 public static class Utils
 {

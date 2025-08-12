@@ -2,8 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="using:YandexMusicPatcherGui"
         mc:Ignorable="d" d:DesignWidth="353" d:DesignHeight="240"
         x:Class="YandexMusicPatcherGui.Main"
+        x:DataType="local:Main"
         Icon="/Assets/icon.ico"
         Title="Yandex Music Patcher"
         Width="353" Height="240"
@@ -34,11 +36,9 @@
                                             HorizontalAlignment="Left"
                                             CornerRadius="7">
                                         <Border.Width>
-                                            <MultiBinding Converter="{StaticResource ProgressToWidthConverter}">
-                                                <Binding Path="Value" RelativeSource="{RelativeSource TemplatedParent}" />
-                                                <Binding Path="Bounds.Width"
-                                                         RelativeSource="{RelativeSource AncestorType=Grid}" />
-                                            </MultiBinding>
+                                            <CompiledBinding Path="Value" Converter="{x:Static local:ProgressToWidthConverter.Instance}"
+                                                             ConverterParameter="{CompiledBinding #PART_Track.Bounds.Width}"
+                                                             RelativeSource="{RelativeSource TemplatedParent}" />
                                         </Border.Width>
                                     </Border>
                                 </Border>

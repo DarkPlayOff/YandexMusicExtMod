@@ -1,9 +1,7 @@
 using System.Diagnostics;
-using System.Globalization;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
-using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -12,21 +10,6 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace YandexMusicPatcherGui;
-
-public class ProgressToWidthConverter : IMultiValueConverter
-{
-    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (values.Count == 2 && values[0] is double progress && values[1] is double width)
-            return progress / 100.0 * width;
-        return 0.0;
-    }
-
-    public object[]? ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
 
 public partial class Main : Window
 {
@@ -87,8 +70,6 @@ public partial class Main : Window
                 _patchButton.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
             }
         }
-
-        DataContext = this;
     }
 
     protected override void OnOpened(EventArgs e)
