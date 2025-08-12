@@ -147,9 +147,11 @@ public static class Patcher
 
         await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода");
         
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            var asarPath = "/opt/Яндекс Музыка/resources/app.asar";
+            var asarPath = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                ? Path.Combine("/Applications", YandexMusicAppName, "Contents", "Resources", "app.asar")
+                : "/opt/Яндекс Музыка/resources/app.asar";
             var tempAsarPath = Path.Combine(tempFolder, "app.asar");
 
             var gunzipCommand = $"gunzip -c \"{downloadedGzFile}\" > \"{tempAsarPath}\"";
@@ -164,20 +166,10 @@ public static class Patcher
         }
         else
         {
-            string resourcesPath;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                resourcesPath = Path.Combine(Program.ModPath, "resources");
-            }
-            else
-            {
-                var appPath = Path.Combine("/Applications", YandexMusicAppName);
-                resourcesPath = Path.Combine(appPath, "Contents", "Resources");
-            }
+            var resourcesPath = Path.Combine(Program.ModPath, "resources");
 
             var asarPath = Path.Combine(resourcesPath, "app.asar");
-            var oldAsarPath = Path.Combine(resourcesPath,
-                RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "app.asar.bak" : "oldapp.asar");
+            var oldAsarPath = Path.Combine(resourcesPath, "oldapp.asar");
 
             if (File.Exists(asarPath))
             {
@@ -187,7 +179,7 @@ public static class Patcher
 
             Directory.CreateDirectory(resourcesPath);
             await ExtractGzip(downloadedGzFile, resourcesPath, tempFolder);
-            
+
             var patcher = AsarIntegrity.CreatePatcher();
             ReportProgress(50, "Обход проверки целостности asar...");
             var success = await patcher.BypassAsarIntegrity();
