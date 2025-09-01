@@ -397,7 +397,7 @@ public partial class Main : Window
             });
 
             var patchNotesUrl =
-                "https://raw.githubusercontent.com/TheKing-OfTime/YandexMusicModClient/master/PATCHNOTES.md";
+                "https://raw.githubusercontent.com/DarkPlayOff/YandexMusicAsar/master/PATCHNOTES.md";
             var markdownContent = await _httpClient.GetStringAsync(patchNotesUrl).ConfigureAwait(false);
             await Dispatcher.UIThread.InvokeAsync(() => _patchNotesContent.Text = markdownContent);
         }
