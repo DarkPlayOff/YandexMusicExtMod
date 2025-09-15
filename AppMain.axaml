@@ -1,12 +1,9 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:YandexMusicPatcherGui"
-
              x:Class="YandexMusicPatcherGui.AppMain"
              RequestedThemeVariant="Dark">
     <Application.Styles>
-
-
         <Style Selector="Button">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Padding" Value="10,5" />

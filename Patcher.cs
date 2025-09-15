@@ -1,25 +1,28 @@
+using System;
+using System.Buffers;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace YandexMusicPatcherGui;
 
 public static class Patcher
 {
-    private const int MaxRetries = 5;
-
-    private const string GithubUrl =
-        "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.gz";
-
+    private const int MaxRetries = 3;
+    private const string GithubUrl = "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.gz";
     private const int BufferSize = 81920;
-    private const int ProgressUpdateThreshold = 51200;
 
     private const string YandexMusicAppName = "Яндекс Музыка.app";
     private const string YandexMusicExeName = "Яндекс Музыка.exe";
 
-    private static readonly HttpClient httpClient = Utils.HttpClient;
+    private static readonly HttpClient HttpClient = Utils.HttpClient;
 
     public static event EventHandler<(int Progress, string Status)>? OnDownloadProgress;
 
@@ -46,7 +49,7 @@ public static class Patcher
         return false;
     }
 
-    public static async Task DownloadLastestMusic()
+    public static async Task DownloadLatestMusic(CancellationToken cancellationToken = default)
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         Directory.CreateDirectory(tempFolder);
@@ -54,230 +57,220 @@ public static class Patcher
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            await DownloadLatestMusicWindows(tempFolder);
+            await DownloadLatestMusicWindows(tempFolder, cancellationToken);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            await DownloadLatestMusicMac(tempFolder);
+            await DownloadLatestMusicMac(tempFolder, cancellationToken);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            await DownloadLatestMusicLinux(tempFolder);
+            await DownloadLatestMusicLinux(tempFolder, cancellationToken);
         }
     }
 
-    private static async Task DownloadLatestMusicWindows(string tempFolder)
+    private static async Task DownloadLatestMusicWindows(string tempFolder, CancellationToken cancellationToken)
     {
         const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe";
-
         var stableExePath = Path.Combine(tempFolder, "stable.exe");
-        await DownloadFileWithProgress(latestUrl, stableExePath, "Загрузка клиента");
+        await DownloadFileWithProgress(latestUrl, stableExePath, "Загрузка клиента", cancellationToken);
 
         ReportProgress(100, "Распаковка...");
-        await ExtractArchive(stableExePath, Program.ModPath, tempFolder);
+        await ExtractArchive(stableExePath, Program.ModPath, tempFolder, "распаковки архива");
         ReportProgress(100, "Распаковка завершена");
     }
 
-    private static async Task DownloadLatestMusicMac(string tempFolder)
+    private static async Task DownloadLatestMusicMac(string tempFolder, CancellationToken cancellationToken)
     {
+        const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.dmg";
         var dmgPath = Path.Combine(tempFolder, "Yandex_Music.dmg");
         var mountPath = Path.Combine(tempFolder, "mount");
+        
         Directory.CreateDirectory(mountPath);
 
-        const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.dmg";
-        await DownloadFileWithProgress(latestUrl, dmgPath, "Загрузка клиента");
+        await DownloadFileWithProgress(latestUrl, dmgPath, "Загрузка клиента", cancellationToken);
 
         ReportProgress(100, "Распаковка DMG...");
-        await RunProcess(CreateProcessStartInfo("hdiutil", $"attach -mountpoint \"{mountPath}\" \"{dmgPath}\""),
-            "Монтирования DMG");
+        await RunProcess("hdiutil", $"attach -mountpoint \"{mountPath}\" \"{dmgPath}\"", "Монтирования DMG", cancellationToken: cancellationToken);
 
         var appPath = Path.Combine(mountPath, YandexMusicAppName);
         var targetAppPath = Path.Combine("/Applications", YandexMusicAppName);
 
-        if (Directory.Exists(targetAppPath)) Directory.Delete(targetAppPath, true);
+        if (Directory.Exists(targetAppPath))
+        {
+            Directory.Delete(targetAppPath, true);
+        }
 
-        await RunProcess(CreateProcessStartInfo("cp", $"-R \"{appPath}\" \"/Applications/\""),
-            "Копирования приложения");
-        await RunProcess(CreateProcessStartInfo("hdiutil", $"detach \"{mountPath}\""), "Размонтирование DMG");
+        await RunProcess("cp", $"-R \"{appPath}\" \"/Applications/\"", "Копирования приложения", cancellationToken: cancellationToken);
+        await RunProcess("hdiutil", $"detach \"{mountPath}\"", "Размонтирование DMG", cancellationToken: cancellationToken);
 
         ReportProgress(100, "Распаковка завершена");
     }
 
-    private static async Task DownloadLatestMusicLinux(string tempFolder)
+    private static async Task DownloadLatestMusicLinux(string tempFolder, CancellationToken cancellationToken)
     {
-        var debPath = Path.Combine(tempFolder, "Yandex_Music.deb");
         const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.deb";
-        await DownloadFileWithProgress(latestUrl, debPath, "Загрузка клиента");
+        var debPath = Path.Combine(tempFolder, "Yandex_Music.deb");
+        
+        await DownloadFileWithProgress(latestUrl, debPath, "Загрузка клиента", cancellationToken);
         
         ReportProgress(50, "Установка .deb пакета...");
         var installCommand = $"apt install -y ./{Path.GetFileName(debPath)}";
-        var processInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{installCommand.Replace("\"", "\\\"")}\"");
-        processInfo.WorkingDirectory = tempFolder;
-        await RunProcess(processInfo, "Установка .deb пакета");
+        await RunProcess("/bin/bash", $"-c \"{installCommand.Replace("\"", "\\\"")}\"", "Установка .deb пакета", tempFolder, cancellationToken);
         ReportProgress(100, "Пакет установлен");
     }
 
     private static async Task<string> Ensure7ZipExists(string tempFolder)
     {
         var sevenZipPath = Path.Combine(tempFolder, "7za.exe");
-        if (File.Exists(sevenZipPath)) return sevenZipPath;
+        if (File.Exists(sevenZipPath))
+        {
+            return sevenZipPath;
+        }
 
         var assembly = Assembly.GetExecutingAssembly();
         var resourceName = assembly.GetManifestResourceNames()
             .FirstOrDefault(name => name.EndsWith("7za.exe", StringComparison.OrdinalIgnoreCase));
 
         if (string.IsNullOrEmpty(resourceName))
-            throw new FileNotFoundException("Не удалось найти ресурс 7za.exe в сборке");
+        {
+            throw new FileNotFoundException("Не удалось найти ресурс 7za.exe в сборке.");
+        }
 
         await using var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream == null)
-            throw new InvalidOperationException("Не удалось получить поток для ресурса 7za.exe");
+        {
+            throw new InvalidOperationException("Не удалось получить поток для ресурса 7za.exe.");
+        }
 
         Directory.CreateDirectory(tempFolder);
         await using var fileStream = new FileStream(sevenZipPath, FileMode.Create, FileAccess.Write);
-        await stream.CopyToAsync(fileStream);
+        await stream.CopyToAsync(fileStream).ConfigureAwait(false);
 
         return sevenZipPath;
     }
 
-    public static async Task DownloadModifiedAsar()
+    public static async Task DownloadModifiedAsar(CancellationToken cancellationToken = default)
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
         var downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
 
-        await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода");
+        await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода", cancellationToken);
         
+        var asarPath = GetAsarPath();
+        var tempAsarPath = Path.Combine(tempFolder, "app.asar");
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            var asarPath = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-                ? Path.Combine("/Applications", YandexMusicAppName, "Contents", "Resources", "app.asar")
-                : "/opt/Яндекс Музыка/resources/app.asar";
-            var tempAsarPath = Path.Combine(tempFolder, "app.asar");
-
             var gunzipCommand = $"gunzip -c \"{downloadedGzFile}\" > \"{tempAsarPath}\"";
-            var gunzipProcessInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{gunzipCommand.Replace("\"", "\\\"")}\"");
-            await RunProcess(gunzipProcessInfo, "распаковки asar.gz");
+            await RunProcess("/bin/bash", $"-c \"{gunzipCommand.Replace("\"", "\\\"")}\"", "распаковки asar.gz", cancellationToken: cancellationToken);
 
             ReportProgress(50, "Замена asar...");
             var moveCommand = $"mv -f \"{tempAsarPath}\" \"{asarPath}\"";
-            var moveProcessInfo = CreateProcessStartInfo("/bin/bash", $"-c \"{moveCommand.Replace("\"", "\\\"")}\"");
-            await RunProcess(moveProcessInfo, "замены asar");
-            ReportProgress(100, "Готово!");
-
-            var patcher = AsarIntegrity.CreatePatcher();
-            ReportProgress(80, "Обход проверки целостности asar...");
-            var success = await patcher.BypassAsarIntegrity();
-            if (success)
-            {
-                ReportProgress(100, "Проверка целостности asar успешно обойдена");
-            }
-            else
-            {
-                ReportProgress(-1, "Ошибка обхода проверки целостности asar");
-            }
+            await RunProcess("/bin/bash", $"-c \"{moveCommand.Replace("\"", "\\\"")}\"", "замены asar", cancellationToken: cancellationToken);
         }
         else
         {
-            var resourcesPath = Path.Combine(Program.ModPath, "resources");
-
-            var asarPath = Path.Combine(resourcesPath, "app.asar");
+            var resourcesPath = Path.GetDirectoryName(asarPath)!;
             var oldAsarPath = Path.Combine(resourcesPath, "oldapp.asar");
 
             if (File.Exists(asarPath))
             {
-                if (File.Exists(oldAsarPath)) File.Delete(oldAsarPath);
-                File.Move(asarPath, oldAsarPath);
+                File.Move(asarPath, oldAsarPath, true);
             }
 
             Directory.CreateDirectory(resourcesPath);
-            await ExtractGzip(downloadedGzFile, resourcesPath, tempFolder);
-
-            var patcher = AsarIntegrity.CreatePatcher();
-            ReportProgress(50, "Обход проверки целостности asar...");
-            var success = await patcher.BypassAsarIntegrity();
-            if (success)
-            {
-                ReportProgress(100, "Проверка целостности asar успешно обойдена");
-            }
-            else
-            {
-                ReportProgress(-1, "Ошибка обхода проверки целостности asar");
-            }
+            await ExtractArchive(downloadedGzFile, resourcesPath, tempFolder, "распаковки gzip архива");
         }
+
+        ReportProgress(100, "Готово!");
+
+        await BypassAsarIntegrity();
+    }
+    
+    private static string GetAsarPath()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return Path.Combine("/Applications", YandexMusicAppName, "Contents", "Resources", "app.asar");
+        }
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return "/opt/Яндекс Музыка/resources/app.asar";
+        }
+        return Path.Combine(Program.ModPath, "resources", "app.asar");
     }
 
-    private static async Task ExtractArchive(string archivePath, string outputPath, string tempFolder)
+    private static async Task BypassAsarIntegrity()
+    {
+        var patcher = AsarIntegrity.CreatePatcher();
+        ReportProgress(80, "Обход проверки целостности asar...");
+        var success = await patcher.BypassAsarIntegrity();
+        ReportProgress(success ? 100 : -1, success ? "Проверка целостности asar успешно обойдена" : "Ошибка обхода проверки целостности asar");
+    }
+
+    private static async Task ExtractArchive(string archivePath, string outputPath, string tempFolder, string operationType)
     {
         var sevenZipPath = await Ensure7ZipExists(tempFolder);
-        var processInfo = CreateProcessStartInfo(sevenZipPath, $"x \"{archivePath}\" -o\"{outputPath}\" -y");
-        await RunProcess(processInfo, "архива");
+        await RunProcess(sevenZipPath, $"x \"{archivePath}\" -o\"{outputPath}\" -y", operationType);
     }
-
-    private static async Task ExtractGzip(string gzipPath, string outputPath, string tempFolder)
+    
+    private static ProcessStartInfo CreateProcessStartInfo(string executable, string arguments, string? workingDirectory = null)
     {
-        var outputFilePath = Path.Combine(outputPath, "app.asar");
-        var sevenZipPath = await Ensure7ZipExists(tempFolder);
-        var processInfo = CreateProcessStartInfo(sevenZipPath, $"x \"{gzipPath}\" -o\"{outputPath}\" -y");
-        await RunProcess(processInfo, "gzip архива");
-    }
-
-    private static ProcessStartInfo CreateProcessStartInfo(string executablePath, string arguments)
-    {
-        var directoryPath = Path.GetDirectoryName(executablePath);
-        return new ProcessStartInfo(executablePath)
+        return new ProcessStartInfo(executable)
         {
             Arguments = arguments,
-            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            WindowStyle = ProcessWindowStyle.Hidden,
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = directoryPath ?? AppContext.BaseDirectory ?? string.Empty
+            WorkingDirectory = workingDirectory ?? Path.GetDirectoryName(executable) ?? string.Empty
         };
     }
-
-    private static async Task RunProcess(ProcessStartInfo processInfo, string operationType)
+    
+    private static async Task RunProcess(string executable, string arguments, string operationType, string? workingDirectory = null, CancellationToken cancellationToken = default)
     {
+        var processInfo = CreateProcessStartInfo(executable, arguments, workingDirectory);
         using var process = Process.Start(processInfo);
         if (process == null)
+        {
             throw new InvalidOperationException($"Не удалось запустить процесс {processInfo.FileName}");
+        }
 
-        await process.WaitForExitAsync();
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
         if (process.ExitCode != 0)
         {
-            var error = await process.StandardError.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(error))
-                error = await process.StandardOutput.ReadToEndAsync();
+            {
+                error = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            }
             throw new Exception($"Ошибка выполнения операции '{operationType}'. Код выхода: {process.ExitCode}. {error}");
         }
-    }
-
-    private static void CleanupDirectory(string directory)
-    {
-        if (Directory.Exists(directory)) Directory.Delete(directory, true);
     }
 
     public static void CleanupTempFiles()
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
-        CleanupDirectory(tempFolder);
+        if (Directory.Exists(tempFolder))
+        {
+            Directory.Delete(tempFolder, true);
+        }
 
         var oldAsarPath = Path.Combine(Program.ModPath, "resources", "oldapp.asar");
-        if (File.Exists(oldAsarPath)) File.Delete(oldAsarPath);
+        if (File.Exists(oldAsarPath))
+        {
+            File.Delete(oldAsarPath);
+        }
     }
 
-    public static async Task CleanInstall()
+    public static void CleanInstall()
     {
-        await Task.Run(() =>
+        if (Directory.Exists(Program.ModPath))
         {
-            var directory = new DirectoryInfo(Program.ModPath);
-            if (!directory.Exists) return;
-
-            foreach (var file in directory.GetFiles()) file.Delete();
-            foreach (var subDirectory in directory.GetDirectories()) subDirectory.Delete(true);
-        });
+            Directory.Delete(Program.ModPath, true);
+        }
     }
 
     private static void ReportProgress(int progress, string status)
@@ -285,39 +278,31 @@ public static class Patcher
         OnDownloadProgress?.Invoke("Patcher", (progress, status));
     }
 
-    private static async Task DownloadFileWithProgress(string url, string destinationPath,
-        string progressStatusPrefix)
+    private static async Task DownloadFileWithProgress(string url, string destinationPath, string progressStatusPrefix, CancellationToken cancellationToken = default)
     {
-        var retryCount = 0;
-        long resumePosition = 0;
-        var downloadComplete = false;
-
-        while (!downloadComplete && retryCount < MaxRetries)
+        for (var retryCount = 0; retryCount < MaxRetries; retryCount++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            long resumePosition = 0;
+            if (File.Exists(destinationPath))
+            {
+                resumePosition = new FileInfo(destinationPath).Length;
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (resumePosition > 0)
+            {
+                request.Headers.Range = new RangeHeaderValue(resumePosition, null);
+            }
+
             try
             {
-                if (retryCount > 0)
-                {
-                    if (retryCount == 1 || retryCount == MaxRetries - 1)
-                        ReportProgress(0, $"Повторная попытка загрузки {retryCount}...");
-
-                    var delay = Math.Min(30, Math.Pow(2, retryCount - 1));
-                    await Task.Delay(TimeSpan.FromSeconds(delay));
-
-                    if (File.Exists(destinationPath))
-                        resumePosition = new FileInfo(destinationPath).Length;
-                }
-
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                if (resumePosition > 0)
-                    request.Headers.Range = new RangeHeaderValue(resumePosition, null);
-
-                using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                using var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
                 if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
                 {
-                    downloadComplete = true;
-                    continue;
+                    return;
                 }
 
                 response.EnsureSuccessStatusCode();
@@ -326,37 +311,43 @@ public static class Patcher
                 var readBytes = resumePosition;
                 var isResume = resumePosition > 0 && response.StatusCode == HttpStatusCode.PartialContent;
 
-                await using var stream = await response.Content.ReadAsStreamAsync();
-                await using var fileStream = new FileStream(destinationPath,
-                    isResume ? FileMode.Append : FileMode.Create,
-                    FileAccess.Write, FileShare.None, BufferSize, true);
+                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                await using var fileStream = new FileStream(destinationPath, isResume ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, true);
 
-                var buffer = new byte[BufferSize];
-                int bytesRead;
-                long lastReportedBytes = 0;
-
-                while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+                var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+                try
                 {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    readBytes += bytesRead;
-                    if (totalBytes > 0 && readBytes - lastReportedBytes >= ProgressUpdateThreshold)
+                    int bytesRead;
+                    while ((bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
                     {
-                        var progress = (int)(readBytes * 100 / (totalBytes + resumePosition));
-                        ReportProgress(progress, $"{progressStatusPrefix}: {progress}%");
-                        lastReportedBytes = readBytes;
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+                        readBytes += bytesRead;
+                        if (totalBytes > 0)
+                        {
+                            var progress = (int)((readBytes * 100) / (totalBytes + resumePosition));
+                            ReportProgress(progress, $"{progressStatusPrefix}: {progress}%");
+                        }
                     }
                 }
-
-                downloadComplete = true;
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception)
             {
-                retryCount++;
-                if (retryCount >= MaxRetries)
+                if (retryCount >= MaxRetries - 1)
                 {
                     ReportProgress(-1, "Ошибка загрузки");
                     throw;
                 }
+                ReportProgress(0, $"Повторная попытка загрузки ({retryCount + 1}/{MaxRetries})...");
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken);
             }
         }
     }

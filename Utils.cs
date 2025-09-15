@@ -6,7 +6,6 @@ using Avalonia.Data.Converters;
 using WindowsShortcutFactory;
 
 namespace YandexMusicPatcherGui;
-
 public class ProgressToWidthConverter : IValueConverter
 {
     public static readonly ProgressToWidthConverter Instance = new();
@@ -23,7 +22,6 @@ public class ProgressToWidthConverter : IValueConverter
         throw new NotSupportedException();
     }
 }
-
 public static class Utils
 {
     public static readonly HttpClient HttpClient;
