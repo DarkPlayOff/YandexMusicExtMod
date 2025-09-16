@@ -83,8 +83,8 @@
                         Margin="0,0,0,10">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <TextBlock Text="{Binding VersionText}" VerticalAlignment="Center" />
-                    <Button Content="?" Width="20" Height="20" FontSize="12" Margin="5,0,0,0"
-                            Command="{Binding TogglePatchNotesCommand}" VerticalAlignment="Center" />
+                    <Button Content="?" Width="60" Height="20" FontSize="12" Margin="5,0,0,0"
+                            Command="{Binding OpenReleasesPageCommand}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Content="Доступно обновление" Width="150" Height="25" FontSize="13"
@@ -112,28 +112,5 @@
                        Width="315"/>
         </Panel>
 
-        <Border Classes="SlidingPanel"
-                IsVisible="{Binding IsPatchNotesVisible}"
-                Classes.Visible="{Binding IsPatchNotesVisible}"
-                Width="320" Height="180"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Bottom"
-                Margin="0,0,0,50">
-            <Border.Transitions>
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="CubicEaseOut" />
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut" />
-                </Transitions>
-            </Border.Transitions>
-            <Grid RowDefinitions="Auto, *, Auto" ColumnDefinitions="*">
-                <TextBlock Grid.Row="0" Text="История изменений" HorizontalAlignment="Center"
-                           VerticalAlignment="Center" Margin="5" />
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <TextBlock Text="{Binding PatchNotesContent}" TextWrapping="Wrap" Margin="10" />
-                </ScrollViewer>
-                <Button Grid.Row="2" Content="OK" HorizontalAlignment="Center"
-                        Margin="0,5,0,5" Command="{Binding TogglePatchNotesCommand}" />
-            </Grid>
-        </Border>
     </Panel>
 </Window>

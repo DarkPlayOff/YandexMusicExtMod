@@ -1,7 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -40,11 +37,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? _patchButtonContent = "Установить мод";
     
-    [ObservableProperty]
-    private bool _isPatchNotesVisible;
-
-    [ObservableProperty]
-    private string? _patchNotesContent;
 
     public MainViewModel()
     {
@@ -114,7 +106,6 @@ public partial class MainViewModel : ObservableObject
         try
         {
             await KillYandexMusicProcess();
-            await Task.Delay(500); 
             await Patcher.DownloadLatestMusic();
             await Patcher.DownloadModifiedAsar();
             var latestVersion = await VersionManager.GetLatestModVersion();
@@ -237,7 +228,6 @@ public partial class MainViewModel : ObservableObject
                 }
                 catch
                 {
-                    // Ignore
                 }
             }
         });
@@ -260,27 +250,8 @@ public partial class MainViewModel : ObservableObject
     }
     
     [RelayCommand]
-    private async Task TogglePatchNotes()
+    private void OpenReleasesPage()
     {
-        if (!IsPatchNotesVisible)
-        {
-            IsPatchNotesVisible = true;
-            PatchNotesContent = "Загрузка...";
-            try
-            {
-                var patchNotesUrl =
-                    "https://raw.githubusercontent.com/DarkPlayOff/YandexMusicAsar/master/PATCHNOTES.md";
-                var markdownContent = await new HttpClient().GetStringAsync(patchNotesUrl).ConfigureAwait(false);
-                PatchNotesContent = markdownContent;
-            }
-            catch (Exception ex)
-            {
-                PatchNotesContent = $"Не удалось загрузить изменения: {ex.Message}";
-            }
-        }
-        else
-        {
-            IsPatchNotesVisible = false;
-        }
+        OpenUrlSafely("https://github.com/DarkPlayOff/YandexMusicAsar/releases");
     }
 }
