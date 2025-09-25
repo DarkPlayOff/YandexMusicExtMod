@@ -26,6 +26,9 @@ public partial class MainViewModel : ObservableObject
     private bool _isRunButtonEnabled;
 
     [ObservableProperty]
+    private bool _isRunButtonVisible = !OperatingSystem.IsLinux();
+
+    [ObservableProperty]
     private bool _isUpdateButtonVisible;
     
     [ObservableProperty]
@@ -167,6 +170,8 @@ public partial class MainViewModel : ObservableObject
         {
             Console.WriteLine($"Ошибка запуска Яндекс Музыки: {ex}");
         }
+        
+        Environment.Exit(0);
     }
 
     [RelayCommand]

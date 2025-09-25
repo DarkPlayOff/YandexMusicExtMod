@@ -6,8 +6,8 @@
         <Nullable>enable</Nullable>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <SignAssembly>False</SignAssembly>
-        <AssemblyVersion>3.1.1</AssemblyVersion>
-        <FileVersion>3.1.1</FileVersion>
+        <AssemblyVersion>3.0.1</AssemblyVersion>
+        <FileVersion>3.0.1</FileVersion>
         <InvariantGlobalization>true</InvariantGlobalization>
         <PackageProjectUrl>https://github.com/DarkPlayOff/YandexMusicExtMod</PackageProjectUrl>
         <Description>Установщик мода для Яндекс Музыки</Description>
@@ -26,34 +26,36 @@
     </PropertyGroup>
 
         <ItemGroup>
-            <PackageReference Include="Avalonia" Version="11.3.6"/>
-            <PackageReference Include="Avalonia.Desktop" Version="11.3.6"/>
+            <PackageReference Include="Avalonia" Version="11.3.6" />
+            <PackageReference Include="Avalonia.Desktop" Version="11.3.6" />
             <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-            <PackageReference Include="System.Net.Http" Version="4.3.4"/>
+            <PackageReference Include="System.Net.Http" Version="4.3.4" />
+            <PackageReference Include="ZstdSharp.Port" Version="0.8.6" />
         </ItemGroup>
+        
     <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-        <PackageReference Include="WindowsShortcutFactory" Version="1.2.0"/>
+        <PackageReference Include="WindowsShortcutFactory" Version="1.2.0" />
     </ItemGroup>
 
     <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-        <EmbeddedResource Include="7zip\7za.exe"/>
+        <EmbeddedResource Include="7zip\7za.exe" />
     </ItemGroup>
 
     <ItemGroup>
-        <Using Include="System"/>
-        <Using Include="System.IO"/>
-        <Using Include="System.Net.Http"/>
-        <Using Include="System.Collections.Generic"/>
-        <Using Include="System.Linq"/>
-        <Using Include="System.Threading"/>
-        <Using Include="System.Threading.Tasks"/>
+        <Using Include="System" />
+        <Using Include="System.IO" />
+        <Using Include="System.Net.Http" />
+        <Using Include="System.Collections.Generic" />
+        <Using Include="System.Linq" />
+        <Using Include="System.Threading" />
+        <Using Include="System.Threading.Tasks" />
     </ItemGroup>
 
     <ItemGroup>
         <Compile Update="**\*.axaml.cs">
             <DependentUpon>%(Filename)</DependentUpon>
         </Compile>
-        <AvaloniaResource Include="Assets\**"/>
+        <AvaloniaResource Include="Assets\**" />
     </ItemGroup>
 
 </Project>

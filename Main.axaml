@@ -75,7 +75,7 @@
                     <Button Content="{Binding PatchButtonContent}" Width="135" Height="25" FontSize="13"
                             IsEnabled="{Binding IsPatchButtonEnabled}" Command="{Binding PatchCommand}" />
                     <Button Content="Запустить Яндекс Музыку" Width="165" Height="25" FontSize="13"
-                            Margin="5,0,0,0" IsEnabled="{Binding IsRunButtonEnabled}" Command="{Binding RunCommand}" />
+                            Margin="5,0,0,0" IsEnabled="{Binding IsRunButtonEnabled}" Command="{Binding RunCommand}" IsVisible="{Binding IsRunButtonVisible}"/>
                 </StackPanel>
             </RelativePanel>
 
@@ -83,7 +83,7 @@
                         Margin="0,0,0,10">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <TextBlock Text="{Binding VersionText}" VerticalAlignment="Center" />
-                    <Button Content="?" Width="60" Height="20" FontSize="12" Margin="5,0,0,0"
+                    <Button Content="?" Width="20" Height="20" FontSize="12" Margin="5,0,0,0"
                             Command="{Binding OpenReleasesPageCommand}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -96,11 +96,13 @@
 
         </Grid>
         
-        <Panel VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding IsProgressBarVisible}">
-            <ProgressBar Classes="AcrylicProgressBar" 
-                         IsIndeterminate="{Binding IsProgressIndeterminate}" 
+        <Grid IsVisible="{Binding IsProgressBarVisible}">
+            <ProgressBar Classes="AcrylicProgressBar"
+                         IsIndeterminate="{Binding IsProgressIndeterminate}"
                          Value="{Binding ProgressValue}"
-                         Width="315"/>
+                         Width="315"
+                         VerticalAlignment="Center"
+                         HorizontalAlignment="Center"/>
             <TextBlock Text="{Binding StatusText}"
                        Foreground="White"
                        FontWeight="Bold"
@@ -110,7 +112,7 @@
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        Width="315"/>
-        </Panel>
+        </Grid>
 
     </Panel>
 </Window>

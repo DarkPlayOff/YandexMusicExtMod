@@ -4,13 +4,13 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using ZstdSharp;
 
 namespace YandexMusicPatcherGui;
-
 public static class Patcher
 {
     private const int MaxRetries = 3;
-    private const string GithubUrl = "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.gz";
+    private const string GithubUrl = "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.zst";
     private const int BufferSize = 81920;
 
     private const string YandexMusicAppName = "Яндекс Музыка.app";
@@ -147,36 +147,36 @@ public static class Patcher
     public static async Task DownloadModifiedAsar(CancellationToken cancellationToken = default)
     {
         var tempFolder = Path.Combine(Program.ModPath, "temp");
-        var downloadedGzFile = Path.Combine(tempFolder, "app.asar.gz");
+        var downloadedGzFile = Path.Combine(tempFolder, "app.asar.zst");
 
         await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода", cancellationToken);
         
         var asarPath = GetAsarPath();
-        var tempAsarPath = Path.Combine(tempFolder, "app.asar");
+        var resourcesPath = Path.GetDirectoryName(asarPath)!;
+        var oldAsarPath = Path.Combine(resourcesPath, "oldapp.asar");
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (File.Exists(asarPath))
         {
-            var gunzipCommand = $"gunzip -c \"{downloadedGzFile}\" > \"{tempAsarPath}\"";
-            await RunProcess("/bin/bash", $"-c \"{gunzipCommand.Replace("\"", "\\\"")}\"", "распаковки asar.gz", cancellationToken: cancellationToken);
+            File.Move(asarPath, oldAsarPath, true);
+        }
 
-            ReportProgress(50, "Замена asar...");
-            var moveCommand = $"mv -f \"{tempAsarPath}\" \"{asarPath}\"";
-            await RunProcess("/bin/bash", $"-c \"{moveCommand.Replace("\"", "\\\"")}\"", "замены asar", cancellationToken: cancellationToken);
+        Directory.CreateDirectory(resourcesPath);
+        
+        ReportProgress(50, "Распаковка asar...");
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            await ExtractArchive(downloadedGzFile, resourcesPath, tempFolder, "распаковки asar.zst");
+            File.Move(Path.Combine(resourcesPath, "app.asar"), asarPath, true);
         }
         else
         {
-            var resourcesPath = Path.GetDirectoryName(asarPath)!;
-            var oldAsarPath = Path.Combine(resourcesPath, "oldapp.asar");
-
-            if (File.Exists(asarPath))
-            {
-                File.Move(asarPath, oldAsarPath, true);
-            }
-
-            Directory.CreateDirectory(resourcesPath);
-            await ExtractArchive(downloadedGzFile, resourcesPath, tempFolder, "распаковки gzip архива");
+            await using var sourceStream = File.OpenRead(downloadedGzFile);
+            await using var destinationStream = File.Create(asarPath);
+            using var decompressionStream = new DecompressionStream(sourceStream);
+            await decompressionStream.CopyToAsync(destinationStream, cancellationToken);
         }
-
+        
         ReportProgress(100, "Готово!");
 
         await BypassAsarIntegrity();
@@ -203,6 +203,7 @@ public static class Patcher
         ReportProgress(success ? 100 : -1, success ? "Проверка целостности asar успешно обойдена" : "Ошибка обхода проверки целостности asar");
     }
 
+    
     private static async Task ExtractArchive(string archivePath, string outputPath, string tempFolder, string operationType)
     {
         var sevenZipPath = await Ensure7ZipExists(tempFolder);
