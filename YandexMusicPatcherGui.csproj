@@ -6,8 +6,8 @@
         <Nullable>enable</Nullable>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <SignAssembly>False</SignAssembly>
-        <AssemblyVersion>3.0.1</AssemblyVersion>
-        <FileVersion>3.0.1</FileVersion>
+        <AssemblyVersion>3.2.0</AssemblyVersion>
+        <FileVersion>3.2.0</FileVersion>
         <InvariantGlobalization>true</InvariantGlobalization>
         <PackageProjectUrl>https://github.com/DarkPlayOff/YandexMusicExtMod</PackageProjectUrl>
         <Description>Установщик мода для Яндекс Музыки</Description>

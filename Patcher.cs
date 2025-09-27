@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -11,6 +12,7 @@ public static class Patcher
 {
     private const int MaxRetries = 3;
     private const string GithubUrl = "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.zst";
+    private const string AsarUnpackedUrl = "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest/download/app.asar.unpacked.zip";
     private const int BufferSize = 81920;
 
     private const string YandexMusicAppName = "Яндекс Музыка.app";
@@ -180,8 +182,38 @@ public static class Patcher
         ReportProgress(100, "Готово!");
 
         await BypassAsarIntegrity();
+        
+        await DownloadAndUnpackUnpackedAsar(cancellationToken);
     }
     
+    private static async Task DownloadAndUnpackUnpackedAsar(CancellationToken cancellationToken)
+    {
+        var tempFolder = Path.Combine(Program.ModPath, "temp");
+        var unpackedAsarArchive = Path.Combine(tempFolder, "app.asar.unpacked.zip");
+        
+        await DownloadFileWithProgress(AsarUnpackedUrl, unpackedAsarArchive, "Загрузка app.asar.unpacked", cancellationToken);
+        
+        var asarPath = GetAsarPath();
+        var resourcesPath = Path.GetDirectoryName(asarPath)!;
+        var unpackedAsarPath = Path.Combine(resourcesPath, "app.asar.unpacked");
+
+        if (Directory.Exists(unpackedAsarPath))
+        {
+            Directory.Delete(unpackedAsarPath, true);
+        }
+
+        ReportProgress(100, "Распаковка app.asar.unpacked...");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            await ExtractArchive(unpackedAsarArchive, unpackedAsarPath, tempFolder, "распаковки app.asar.unpacked");
+        }
+        else
+        {
+            await Task.Run(() => ZipFile.ExtractToDirectory(unpackedAsarArchive, unpackedAsarPath));
+        }
+        ReportProgress(100, "Распаковка app.asar.unpacked завершена");
+    }
+
     private static string GetAsarPath()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
