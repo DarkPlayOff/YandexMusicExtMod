@@ -338,6 +338,6 @@ Devtools по умолчанию отключены. Чтобы включить
 
 ## ❤️Благодарности
 
-• [Stephanzion](https://github.com/Stephanzion) за оригинальный патчер для плюса
+• [Stephanzion](https://github.com/Stephanzion) за [патчер](https://github.com/Stephanzion/YandexMusicBetaMod) для активации плюса
 
-• [TheKing-OfTime](https://github.com/TheKing-OfTime) за модификацию Яндекс Музыки
+• [TheKing-OfTime](https://github.com/TheKing-OfTime) за [модификацию](https://github.com/TheKing-OfTime/YandexMusicModClient) Яндекс Музыки
