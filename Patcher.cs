@@ -111,7 +111,7 @@ public static class Patcher
         await DownloadFileWithProgress(latestUrl, debPath, "Загрузка клиента", cancellationToken);
         
         ReportProgress(50, "Установка .deb пакета...");
-        var installCommand = $"apt install -y ./{Path.GetFileName(debPath)}";
+        var installCommand = $"apt-get install --allow-downgrades -y ./{Path.GetFileName(debPath)}";
         await RunProcess("/bin/bash", $"-c \"{installCommand.Replace("\"", "\\\"")}\"", "Установка .deb пакета", tempFolder, cancellationToken);
         ReportProgress(100, "Пакет установлен");
     }
