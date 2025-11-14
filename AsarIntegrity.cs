@@ -1,7 +1,4 @@
 using System.Buffers;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -126,7 +123,6 @@ internal class WindowsAsarPatcher : AsarPatcherBase, IAsarIntegrityPatcher
     private const string ResourcesFoldername = "resources";
     private const string OriginalAsarFilename = "oldapp.asar";
     private const string ModifiedAsarFilename = "app.asar";
-    private const int ChunkSize = 4 * 1024 * 1024;
 
     public async Task<bool> BypassAsarIntegrity()
     {
@@ -150,8 +146,7 @@ internal class WindowsAsarPatcher : AsarPatcherBase, IAsarIntegrityPatcher
                 return true;
             }
 
-            var result = await PatchExeFileMemoryMapped(exePath, originalHash, modifiedHash).ConfigureAwait(false);
-            return result;
+            return await PatchExeFile(exePath, originalHash, modifiedHash).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -159,95 +154,23 @@ internal class WindowsAsarPatcher : AsarPatcherBase, IAsarIntegrityPatcher
         }
     }
 
-    private static async Task<bool> PatchExeFileMemoryMapped(string exePath, string originalHash, string modifiedHash)
+    private static async Task<bool> PatchExeFile(string exePath, string originalHash, string modifiedHash)
     {
         var originalHashBytes = Encoding.ASCII.GetBytes(originalHash);
         var modifiedHashBytes = Encoding.ASCII.GetBytes(modifiedHash);
-
-        return await Task.Run(() =>
+        
+        var fileBytes = await File.ReadAllBytesAsync(exePath);
+        var span = fileBytes.AsSpan();
+        
+        var offset = span.IndexOf(originalHashBytes);
+        if (offset != -1)
         {
-            using var fileStream = new FileStream(exePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            using var mmf = MemoryMappedFile.CreateFromFile(fileStream, null, fileStream.Length,
-                MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, false);
-
-            var fileLength = fileStream.Length;
-            var searchResult = ParallelSearchInMemoryMappedFile(mmf, fileLength, originalHashBytes, modifiedHashBytes);
-
-            if (searchResult.Found)
-            {
-                if (searchResult.IsOriginalHash)
-                {
-                    using var accessor = mmf.CreateViewAccessor(searchResult.Offset, modifiedHashBytes.Length);
-                    accessor.WriteArray(0, modifiedHashBytes, 0, modifiedHashBytes.Length);
-                }
-
-                return true;
-            }
-
-            return false;
-        });
-    }
-
-    private static (bool Found, bool IsOriginalHash, long Offset) ParallelSearchInMemoryMappedFile(
-        MemoryMappedFile mmf, long fileLength, byte[] originalHashBytes, byte[] modifiedHashBytes)
-    {
-        var chunks = (int)Math.Ceiling((double)fileLength / ChunkSize);
-        var overlap = Math.Max(originalHashBytes.Length, modifiedHashBytes.Length);
-
-        var result = (Found: false, IsOriginalHash: false, Offset: 0L);
-        var resultLock = new object();
-
-        Parallel.For(0, chunks, (chunkIndex, state) =>
-        {
-            var startOffset = chunkIndex * (long)ChunkSize;
-            var chunkSize = (int)Math.Min(ChunkSize + overlap, fileLength - startOffset);
-
-            if (chunkSize <= 0) return;
-
-            try
-            {
-                using var accessor = mmf.CreateViewAccessor(startOffset, chunkSize);
-                var buffer = ArrayPool<byte>.Shared.Rent(chunkSize);
-                try
-                {
-                    accessor.ReadArray(0, buffer, 0, chunkSize);
-                    var span = buffer.AsSpan(0, chunkSize);
-
-                    var offset = span.IndexOf(originalHashBytes);
-                    if (offset != -1)
-                    {
-                        lock (resultLock)
-                        {
-                            result = (true, true, startOffset + offset);
-                        }
-
-                        state.Stop();
-                        return;
-                    }
-
-                    offset = span.IndexOf(modifiedHashBytes);
-                    if (offset != -1)
-                    {
-                        lock (resultLock)
-                        {
-                            result = (true, false, startOffset + offset);
-                        }
-
-                        state.Stop();
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buffer);
-                }
-            }
-            catch
-            {
-                /* Ignore errors in parallel search */
-            }
-        });
-
-        return result;
+            modifiedHashBytes.CopyTo(span.Slice(offset));
+            await File.WriteAllBytesAsync(exePath, fileBytes);
+            return true;
+        }
+        
+        return span.IndexOf(modifiedHashBytes) != -1;
     }
 }
 
@@ -277,7 +200,7 @@ internal class MacAsarPatcher : AsarPatcherBase, IAsarIntegrityPatcher
         {
             await BypassAsarIntegrityDarwin();
 
-            ReplaceSignDarwin();
+            await ReplaceSignDarwin();
 
             return true;
         }
@@ -316,41 +239,16 @@ internal class MacAsarPatcher : AsarPatcherBase, IAsarIntegrityPatcher
         }
     }
 
-    private void ReplaceSignDarwin()
+    private async Task ReplaceSignDarwin()
     {
         try
         {
-            ExecuteCommand($"codesign -d --entitlements :- '{_ymPath}' > '{_extractedEntitlementsPath}'");
+            await Patcher.RunProcess("/bin/bash", $"-c \"codesign -d --entitlements :- '{_ymPath}' > '{_extractedEntitlementsPath}'\"", "извлечения разрешений");
         }
         catch (Exception)
         {
         }
 
-        ExecuteCommand($"codesign --force --entitlements '{_extractedEntitlementsPath}' --sign - '{_ymPath}'");
-    }
-
-
-    private static void ExecuteCommand(string command)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "/bin/bash",
-            Arguments = $"-c \"{command}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        using var process = Process.Start(psi);
-        if (process == null) return;
-
-        process.WaitForExit();
-
-        if (process.ExitCode != 0)
-        {
-            var error = process.StandardError.ReadToEnd();
-            throw new Exception($"Command failed with exit code {process.ExitCode}: {error}");
-        }
+        await Patcher.RunProcess("/bin/bash", $"-c \"codesign --force --entitlements '{_extractedEntitlementsPath}' --sign - '{_ymPath}'\"", "замены подписи");
     }
 }

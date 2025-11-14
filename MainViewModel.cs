@@ -2,11 +2,14 @@ using System.Diagnostics;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using YandexMusicPatcherGui.Services;
 
 namespace YandexMusicPatcherGui;
 
 public partial class MainViewModel : ObservableObject
 {
+    private readonly PatcherService _patcherService = new();
+    
     [ObservableProperty]
     private string? _statusText;
 
@@ -47,39 +50,31 @@ public partial class MainViewModel : ObservableObject
         Dispatcher.UIThread.InvokeAsync(Initialize);
     }
 
-    private async void OnPatcherOnDownloadProgress(object? sender, (int Progress, string Status) e)
+    private void OnPatcherOnDownloadProgress(object? sender, (int Progress, string Status) e)
     {
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        Dispatcher.UIThread.InvokeAsync(() =>
         {
             if (e.Progress < 0)
             {
                 IsProgressIndeterminate = true;
-                StatusText = e.Status;
             }
             else
             {
                 IsProgressIndeterminate = false;
                 ProgressValue = e.Progress;
-                StatusText = e.Status;
             }
+            StatusText = e.Status;
             IsProgressBarVisible = true;
         });
     }
 
     private async Task Initialize()
     {
-        if (OperatingSystem.IsLinux() && Environment.UserName != "root")
+        var (isSupported, message) = await Program.PlatformService.IsSupported();
+        if (!isSupported)
         {
             IsPatchButtonEnabled = false;
-            StatusText = "Для установки на Linux требуются права root. Пожалуйста, перезапустите программу с 'sudo'.";
-            IsProgressBarVisible = true;
-            return;
-        }
-
-        if (OperatingSystem.IsMacOS() && Utils.IsSipEnabled())
-        {
-            IsPatchButtonEnabled = false;
-            StatusText = "Отключите SIP для продолжения";
+            StatusText = message;
             IsProgressBarVisible = true;
             return;
         }
@@ -90,10 +85,9 @@ public partial class MainViewModel : ObservableObject
 
     private async Task CheckForUpdates()
     {
-        var version = await Update.GetLatestAppVersion().ConfigureAwait(false);
+        var githubVersion = await Update.GetLatestAppVersion().ConfigureAwait(true);
         var hasUpdate = false;
-        if (Version.TryParse(version, out var githubVersion) &&
-            Version.TryParse(Program.Version, out var currentVersion))
+        if (githubVersion != null && Version.TryParse(Program.Version, out var currentVersion))
         {
             hasUpdate = githubVersion > currentVersion;
         }
@@ -108,34 +102,16 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            await KillYandexMusicProcess();
-            await Patcher.DownloadLatestMusic();
-            await Patcher.DownloadModifiedAsar();
-            var latestVersion = await VersionManager.GetLatestModVersion();
-            if (latestVersion != null)
-            {
-                VersionManager.SetInstalledVersion(latestVersion);
-            }
-            await CreateDesktopShortcut();
-
-            var message = "Ярлык создан на рабочем столе!";
-            if (OperatingSystem.IsMacOS())
-            {
-                message = "Клиент установлен в папку программ!";
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                message = "Пакет установлен!.";
-            }
-            StatusText = message;
-            ProgressValue = 100;
-            IsProgressIndeterminate = false;
+            var progress = new Progress<(int, string)>(e => OnPatcherOnDownloadProgress(this, e));
+            await _patcherService.Patch(progress);
         }
         catch (Exception ex)
         {
             StatusText = $"Ошибка: {ex.Message}";
             ProgressValue = 100;
             IsProgressIndeterminate = false;
+            
+            Trace.TraceError("Ошибка патча: {0}", ex.ToString());
         }
         finally
         {
@@ -153,18 +129,7 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            if (OperatingSystem.IsWindows())
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = Path.Combine(Program.ModPath, "Яндекс Музыка.exe"),
-                    UseShellExecute = true
-                });
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                Process.Start("open", "-a \"Яндекс Музыка\"");
-            }
+            Program.PlatformService.RunApplication();
         }
         catch (Exception ex)
         {
@@ -175,30 +140,24 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Report()
-    {
-        OpenUrlSafely("https://github.com/DarkPlayOff/YandexMusicExtMod/issues/new?assignees=&labels=bug&template=bug_report.yml");
-    }
-
-    [RelayCommand]
     private void OpenUpdateUrl()
     {
-        OpenUrlSafely("https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest");
+        OpenUrlSafely(Program.RepoUrl + "/releases/latest");
     }
 
     private async Task UpdateVersionInfo()
     {
-        var installedVersion = VersionManager.GetInstalledVersion();
-        var latestVersion = await VersionManager.GetLatestModVersion().ConfigureAwait(false);
+        var installedVersion = Update.GetInstalledVersion();
+        var latestVersion = await Update.GetLatestModVersion().ConfigureAwait(false);
 
-        if (installedVersion == "Не установлено")
+        if (installedVersion == null)
         {
-            VersionText = $"Версия мода: {latestVersion ?? "Неизвестно"}";
+            VersionText = $"Версия мода: {latestVersion?.ToString() ?? "Неизвестно"}";
             PatchButtonContent = "Установить мод";
         }
-        else if (installedVersion != latestVersion)
+        else if (latestVersion != null && installedVersion < latestVersion)
         {
-            VersionText = $"Доступно обновление мода: {installedVersion} -> {latestVersion ?? "Неизвестно"}";
+            VersionText = $"Доступно обновление мода: {installedVersion} -> {latestVersion}";
             PatchButtonContent = "Обновить мод";
         }
         else
@@ -210,34 +169,6 @@ public partial class MainViewModel : ObservableObject
         IsRunButtonEnabled = Patcher.IsModInstalled();
     }
     
-    private async Task CreateDesktopShortcut()
-    {
-        await Task.Run(() =>
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                Utils.CreateDesktopShortcut("Яндекс Музыка", Path.Combine(Program.ModPath, "Яндекс Музыка.exe"));
-            }
-        }).ConfigureAwait(false);
-    }
-    
-    private async Task KillYandexMusicProcess()
-    {
-        await Task.Run(() =>
-        {
-            foreach (var p in Process.GetProcessesByName("Яндекс Музыка"))
-            {
-                try
-                {
-                    p.Kill();
-                }
-                catch
-                {
-                }
-            }
-        });
-    }
-
     private static void OpenUrlSafely(string url)
     {
         try
@@ -254,9 +185,4 @@ public partial class MainViewModel : ObservableObject
         }
     }
     
-    [RelayCommand]
-    private void OpenReleasesPage()
-    {
-        OpenUrlSafely("https://github.com/DarkPlayOff/YandexMusicAsar/releases");
-    }
 }

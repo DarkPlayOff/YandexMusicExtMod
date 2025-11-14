@@ -29,26 +29,12 @@
             <PackageReference Include="Avalonia" Version="11.3.8" />
             <PackageReference Include="Avalonia.Desktop" Version="11.3.8" />
             <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-            <PackageReference Include="System.Net.Http" Version="4.3.4" />
             <PackageReference Include="ZstdSharp.Port" Version="0.8.6" />
         </ItemGroup>
         
     <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-        <PackageReference Include="WindowsShortcutFactory" Version="1.2.0" />
-    </ItemGroup>
-
-    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
         <EmbeddedResource Include="7zip\7za.exe" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Using Include="System" />
-        <Using Include="System.IO" />
-        <Using Include="System.Net.Http" />
-        <Using Include="System.Collections.Generic" />
-        <Using Include="System.Linq" />
-        <Using Include="System.Threading" />
-        <Using Include="System.Threading.Tasks" />
+        <PackageReference Include="WindowsShortcutFactory" Version="1.2.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -57,5 +43,4 @@
         </Compile>
         <AvaloniaResource Include="Assets\**" />
     </ItemGroup>
-
 </Project>

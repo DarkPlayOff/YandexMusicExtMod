@@ -37,6 +37,11 @@ public partial class Main : Window
 
     private void Window_MouseDown(object sender, PointerPressedEventArgs e)
     {
+        if (e.Source is Button)
+        {
+            return;
+        }
+        
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             BeginMoveDrag(e);

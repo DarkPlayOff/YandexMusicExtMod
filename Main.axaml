@@ -64,8 +64,7 @@
         </Style>
     </Window.Styles>
 
-    <Panel Background="Transparent">
-        <Panel Background="Transparent" PointerPressed="Window_MouseDown" VerticalAlignment="Top" Height="30" />
+    <Panel Background="Transparent" PointerPressed="Window_MouseDown">
         <Grid RowDefinitions="Auto, *, Auto" ColumnDefinitions="*" IsVisible="{Binding AreButtonsVisible}">
 
             <RelativePanel Grid.Row="0" Margin="5,5,5,0">
@@ -84,13 +83,11 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <TextBlock Text="{Binding VersionText}" VerticalAlignment="Center" />
                     <Button Content="?" Width="20" Height="20" FontSize="12" Margin="5,0,0,0"
-                            Command="{Binding OpenReleasesPageCommand}" VerticalAlignment="Center" />
+                            Command="{Binding OpenUpdateUrlCommand}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Content="Доступно обновление" Width="150" Height="25" FontSize="13"
-                            Margin="0,0,10,0" IsVisible="{Binding IsUpdateButtonVisible}" Command="{Binding OpenUpdateUrlCommand}" />
-                    <Button Content="Сообщить об ошибке" Width="140" Height="25" FontSize="13"
-                            Command="{Binding ReportCommand}" />
+                            IsVisible="{Binding IsUpdateButtonVisible}" Command="{Binding OpenUpdateUrlCommand}" />
                 </StackPanel>
             </StackPanel>
 

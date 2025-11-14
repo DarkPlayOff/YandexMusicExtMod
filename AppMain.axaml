@@ -101,6 +101,5 @@
 
 
     <Application.Resources>
-        <local:ProgressToWidthConverter x:Key="ProgressToWidthConverter" />
     </Application.Resources>
 </Application>

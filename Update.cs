@@ -1,44 +1,57 @@
-using System.Text.RegularExpressions;
+using System.Net;
 
 namespace YandexMusicPatcherGui;
 
 public static class Update
 {
-    private static readonly HttpClient httpClient = Utils.HttpClient;
+    private static readonly string VersionFilePath = Path.Combine(Program.ModPath, "version.txt");
 
-
-    public static async Task<string?> GetLatestModVersion()
+    public static Task<Version?> GetLatestAppVersion()
     {
-        var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        using var client = new HttpClient(handler);
-
-        var request = new HttpRequestMessage(HttpMethod.Get,
-            "https://github.com/DarkPlayOff/YandexMusicAsar/releases/latest");
-        var response = await client.SendAsync(request);
-
-        if (response.StatusCode == System.Net.HttpStatusCode.Redirect || response.StatusCode == System.Net.HttpStatusCode.Found)
-        {
-            var versionString = response.Headers.Location?.ToString().Split('/').LastOrDefault();
-            return versionString != null ? Regex.Replace(versionString, "[^0-9.]", "") : null;
-        }
-
-        return null;
+        return GetLatestVersionFromRepo(Program.RepoUrl);
     }
 
-    public static async Task<string?> GetLatestAppVersion()
+    public static Version? GetInstalledVersion()
     {
-        var handler = new HttpClientHandler { AllowAutoRedirect = false };
-        using var client = new HttpClient(handler);
-        
-        var request = new HttpRequestMessage(HttpMethod.Get,
-            $"{Program.RepoUrl}/releases/latest");
-        var response = await client.SendAsync(request);
-
-        if (response.StatusCode == System.Net.HttpStatusCode.Redirect || response.StatusCode == System.Net.HttpStatusCode.Found)
+        if (!File.Exists(VersionFilePath))
         {
-            return response.Headers.Location?.ToString().Split('/').LastOrDefault()?.Replace("v", "");
+            return null;
         }
 
-        return null;
+        var versionString = File.ReadAllText(VersionFilePath);
+        Version.TryParse(versionString, out var version);
+        return version;
+    }
+
+    public static void SetInstalledVersion(Version version)
+    {
+        Directory.CreateDirectory(Program.ModPath);
+        File.WriteAllText(VersionFilePath, version.ToString());
+    }
+
+    public static Task<Version?> GetLatestModVersion()
+    {
+        return GetLatestVersionFromRepo("https://github.com/DarkPlayOff/YandexMusicAsar");
+    }
+
+    public static async Task<Version?> GetLatestVersionFromRepo(string repoUrl)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{repoUrl}/releases/latest");
+        var response = await Utils.NoRedirectHttpClient.SendAsync(request).ConfigureAwait(false);
+
+        if (response.StatusCode is not (HttpStatusCode.Redirect or HttpStatusCode.Found))
+        {
+            return null;
+        }
+
+        var location = response.Headers.Location?.ToString();
+        if (location == null)
+        {
+            return null;
+        }
+
+        var versionString = location.Split('/').LastOrDefault();
+
+        return versionString != null && Version.TryParse(versionString.Replace("v", ""), out var version) ? version : null;
     }
 }
