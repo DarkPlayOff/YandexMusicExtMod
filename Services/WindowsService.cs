@@ -4,7 +4,7 @@ using WindowsShortcutFactory;
 
 namespace YandexMusicPatcherGui.Services;
 
-public class WindowsService : IPlatformService
+public class WindowsService : BasePlatformService
 {
     private const string YandexMusicAppName = "YandexMusic";
     private const string YandexMusicExeName = "Яндекс Музыка.exe";
@@ -13,33 +13,33 @@ public class WindowsService : IPlatformService
     private const string AppAsarUnpackedName = "app.asar.unpacked";
     private const string ProgramsDirName = "Programs";
 
-    public string GetModPath()
+    public override string GetModPath()
     {
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProgramsDirName, YandexMusicAppName);
     }
 
-    public string GetAsarPath()
+    public override string GetAsarPath()
     {
         return Path.Combine(GetResourcesPath(), AppAsarName);
     }
 
-    public async Task DownloadLatestMusic(string tempFolder, CancellationToken cancellationToken)
+    public override async Task DownloadLatestMusic(string tempFolder)
     {
         const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.exe";
         var stableExePath = Path.Combine(tempFolder, "stable.exe");
-        await Patcher.DownloadFileWithProgress(latestUrl, stableExePath, "Загрузка клиента", cancellationToken);
+        await Patcher.DownloadFileWithProgress(latestUrl, stableExePath, "Загрузка клиента");
 
         Patcher.ReportProgress(100, "Распаковка...");
         await Patcher.ExtractArchive(stableExePath, GetModPath(), tempFolder, "распаковки архива");
         Patcher.ReportProgress(100, "Распаковка завершена");
     }
 
-    public Task<(bool, string)> IsSupported()
+    public override Task<(bool, string)> IsSupported()
     {
         return Task.FromResult((true, string.Empty));
     }
 
-    public Task CreateDesktopShortcut(string linkName, string path)
+    public override Task CreateDesktopShortcut(string linkName, string path)
     {
 #if WINDOWS
         return Task.Run(() => CreateShortcut(linkName, path));
@@ -63,7 +63,7 @@ public class WindowsService : IPlatformService
         shortcut.Save(shortcutPath);
     }
 
-    public void RunApplication()
+    public override void RunApplication()
     {
         Process.Start(new ProcessStartInfo
         {
@@ -72,21 +72,16 @@ public class WindowsService : IPlatformService
         });
     }
 
-    public string GetPatchMessage()
-    {
-        return "Ярлык создан на рабочем столе!";
-    }
-
-    public string GetApplicationExecutablePath()
+    public override string GetApplicationExecutablePath()
     {
         return Path.Combine(GetModPath(), YandexMusicExeName);
     }
-    public Task InstallMod(string archivePath, string tempFolder, CancellationToken cancellationToken)
+    public override Task InstallMod(string archivePath, string tempFolder)
     {
         return Patcher.ExtractArchive(archivePath, GetResourcesPath(), tempFolder, "распаковки asar.zst");
     }
 
-    public Task InstallModUnpacked(string archivePath, string tempFolder, CancellationToken cancellationToken)
+    public override Task InstallModUnpacked(string archivePath, string tempFolder)
     {
         var unpackedAsarPath = Path.Combine(GetResourcesPath(), AppAsarUnpackedName);
 
@@ -97,7 +92,7 @@ public class WindowsService : IPlatformService
 
         return Patcher.ExtractArchive(archivePath, unpackedAsarPath, tempFolder, "распаковки app.asar.unpacked");
     }
-    
+
     private string GetResourcesPath()
     {
         return Path.Combine(GetModPath(), ResourcesDirName);

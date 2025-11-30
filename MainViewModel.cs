@@ -41,8 +41,10 @@ public partial class MainViewModel : ObservableObject
     private string? _versionText;
 
     [ObservableProperty]
+    private bool _isVersionTextVisible;
+
+    [ObservableProperty]
     private string? _patchButtonContent = "Установить мод";
-    
 
     public MainViewModel()
     {
@@ -70,22 +72,32 @@ public partial class MainViewModel : ObservableObject
 
     private async Task Initialize()
     {
-        var (isSupported, message) = await Program.PlatformService.IsSupported();
-        if (!isSupported)
+        try
         {
-            IsPatchButtonEnabled = false;
-            StatusText = message;
-            IsProgressBarVisible = true;
-            return;
-        }
+            var (isSupported, message) = await Program.PlatformService.IsSupported();
+            if (!isSupported)
+            {
+                IsPatchButtonEnabled = false;
+                StatusText = message;
+                AreButtonsVisible = false;
+                IsProgressBarVisible = true;
+                return;
+            }
 
-        await CheckForUpdates();
-        await UpdateVersionInfo();
+            await CheckForUpdates();
+            await UpdateVersionInfo();
+        }
+        catch (Exception ex)
+        {
+            StatusText = "Ошибка инициализации: " + ex.Message;
+            AreButtonsVisible = false;
+            IsProgressBarVisible = true;
+        }
     }
 
     private async Task CheckForUpdates()
     {
-        var githubVersion = await Update.GetLatestAppVersion().ConfigureAwait(true);
+        var githubVersion = await Update.GetLatestAppVersion();
         var hasUpdate = false;
         if (githubVersion != null && Version.TryParse(Program.Version, out var currentVersion))
         {
@@ -93,37 +105,39 @@ public partial class MainViewModel : ObservableObject
         }
         IsUpdateButtonVisible = hasUpdate;
     }
-    
+
     [RelayCommand]
-    private async Task Patch()
+    public async Task Patch()
     {
-        IsPatchButtonEnabled = false;
         AreButtonsVisible = false;
+        IsProgressBarVisible = true;
+        IsPatchButtonEnabled = false;
 
         try
         {
             var progress = new Progress<(int, string)>(e => OnPatcherOnDownloadProgress(this, e));
             await _patcherService.Patch(progress);
+
+            await UpdateVersionInfo();
+            StatusText = "Установка завершена!";
+            AreButtonsVisible = true;
+            IsPatchButtonEnabled = true;
         }
         catch (Exception ex)
         {
             StatusText = $"Ошибка: {ex.Message}";
-            ProgressValue = 100;
+            ProgressValue = 0;
             IsProgressIndeterminate = false;
-            
             Trace.TraceError("Ошибка патча: {0}", ex.ToString());
         }
         finally
         {
-            IsPatchButtonEnabled = true;
-            await UpdateVersionInfo();
             Patcher.CleanupTempFiles();
-            AreButtonsVisible = true;
         }
     }
 
     [RelayCommand]
-    private void Run()
+    public void Run()
     {
         if (!IsRunButtonEnabled) return;
 
@@ -140,7 +154,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenUpdateUrl()
+    public void OpenUpdateUrl()
     {
         OpenUrlSafely(Program.RepoUrl + "/releases/latest");
     }
@@ -148,25 +162,28 @@ public partial class MainViewModel : ObservableObject
     private async Task UpdateVersionInfo()
     {
         var installedVersion = Update.GetInstalledVersion();
-        var latestVersion = await Update.GetLatestModVersion().ConfigureAwait(false);
+        var latestVersion = await Update.GetLatestModVersion();
+
+        IsRunButtonEnabled = installedVersion != null;
+        IsVersionTextVisible = installedVersion != null;
 
         if (installedVersion == null)
         {
-            VersionText = $"Версия мода: {latestVersion?.ToString() ?? "Неизвестно"}";
             PatchButtonContent = "Установить мод";
+            return;
         }
-        else if (latestVersion != null && installedVersion < latestVersion)
+    
+        VersionText = $"Версия мода: {installedVersion}";
+    
+        if (latestVersion != null && installedVersion < latestVersion)
         {
             VersionText = $"Доступно обновление мода: {installedVersion} -> {latestVersion}";
             PatchButtonContent = "Обновить мод";
         }
         else
         {
-            VersionText = $"Версия мода: {installedVersion}";
-            PatchButtonContent = "Переустановить мод";
+            PatchButtonContent = "Переустановить";
         }
-
-        IsRunButtonEnabled = Patcher.IsModInstalled();
     }
     
     private static void OpenUrlSafely(string url)

@@ -34,10 +34,10 @@ public static class Update
         return GetLatestVersionFromRepo("https://github.com/DarkPlayOff/YandexMusicAsar");
     }
 
-    public static async Task<Version?> GetLatestVersionFromRepo(string repoUrl)
+    private static async Task<Version?> GetLatestVersionFromRepo(string repoUrl)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, $"{repoUrl}/releases/latest");
-        var response = await Utils.NoRedirectHttpClient.SendAsync(request).ConfigureAwait(false);
+        var response = await Utils.NoRedirectHttpClient.SendAsync(request);
 
         if (response.StatusCode is not (HttpStatusCode.Redirect or HttpStatusCode.Found))
         {
@@ -50,8 +50,14 @@ public static class Update
             return null;
         }
 
-        var versionString = location.Split('/').LastOrDefault();
+        var tagName = location.Split('/').LastOrDefault();
+        if (tagName == null)
+        {
+            return null;
+        }
+        
+        var versionString = tagName.Split('@').LastOrDefault();
 
-        return versionString != null && Version.TryParse(versionString.Replace("v", ""), out var version) ? version : null;
+        return versionString != null && Version.TryParse(versionString, out var version) ? version : null;
     }
 }

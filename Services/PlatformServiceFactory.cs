@@ -14,10 +14,15 @@ public static class PlatformServiceFactory
         {
             return new MacOsService();
         }
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return new LinuxService();
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    return IsArchBased() ? new ArchLinuxService() : new LinuxService();
+                }
+                throw new PlatformNotSupportedException();
+            }
+        
+                private static bool IsArchBased()
+                {
+                    return File.Exists("/usr/bin/pacman");
+                }
         }
-        throw new PlatformNotSupportedException();
-    }
-}

@@ -17,16 +17,16 @@ public class LinuxService : BasePlatformService
         return Path.Combine(AppInstallPath, "resources", "app.asar");
     }
 
-    public override async Task DownloadLatestMusic(string tempFolder, CancellationToken cancellationToken)
+    public override async Task DownloadLatestMusic(string tempFolder)
     {
         const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.deb";
         var debPath = Path.Combine(tempFolder, DebName);
         
-        await Patcher.DownloadFileWithProgress(latestUrl, debPath, "Загрузка клиента", cancellationToken);
+        await Patcher.DownloadFileWithProgress(latestUrl, debPath, "Загрузка клиента");
         
         Patcher.ReportProgress(50, "Установка .deb пакета...");
         var installCommand = $"apt-get install --allow-downgrades -y ./{Path.GetFileName(debPath)}";
-        await Patcher.RunProcess("/bin/bash", $"-c \"{installCommand.Replace("\"", "\\\"")}\"", "Установка .deb пакета", tempFolder, cancellationToken);
+        await Patcher.RunProcess("/bin/bash", $"-c \"{installCommand.Replace("\"", "\\\"")}\"", "Установка .deb пакета...", tempFolder);
         Patcher.ReportProgress(100, "Пакет установлен");
     }
 
@@ -34,7 +34,7 @@ public class LinuxService : BasePlatformService
     {
         if (Environment.UserName != "root")
         {
-            return Task.FromResult((false, "Для установки на Linux требуются права root. Пожалуйста, перезапустите программу с 'sudo'."));
+            return Task.FromResult((false, "Для установки требуются права root."));
         }
         return Task.FromResult((true, string.Empty));
     }
@@ -48,14 +48,13 @@ public class LinuxService : BasePlatformService
     {
         Patcher.RunProcess(GetApplicationExecutablePath(), "", "запуска приложения").GetAwaiter().GetResult();
     }
+public override string GetApplicationExecutablePath()
+{
+    return Path.Combine(AppInstallPath, AppExecutableName);
+}
 
-    public override string GetPatchMessage()
-    {
-        return "Пакет установлен!";
-    }
-
-    public override string GetApplicationExecutablePath()
-    {
-        return Path.Combine(AppInstallPath, AppExecutableName);
-    }
+public override Task InstallModUnpacked(string archivePath, string tempFolder)
+{
+    return Task.CompletedTask;
+}
 }

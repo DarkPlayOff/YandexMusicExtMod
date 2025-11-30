@@ -1,13 +1,14 @@
 using System.Buffers;
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using ZstdSharp;
 
 namespace YandexMusicPatcherGui;
+
+public sealed record ProcessResult(int ExitCode, string Output, string Error);
+
 public static class Patcher
 {
     private const int MaxRetries = 3;
@@ -21,19 +22,16 @@ public static class Patcher
 
     public static bool IsModInstalled()
     {
-        var targetPath = Program.ModPath;
-        var asarPath = Program.PlatformService.GetAsarPath();
-        
-        return Directory.Exists(targetPath) && File.Exists(asarPath);
+        return Update.GetInstalledVersion() != null;
     }
     
-    public static async Task DownloadLatestMusic(CancellationToken cancellationToken = default)
+    public static async Task DownloadLatestMusic()
     {
-        var tempFolder = Path.Combine(Program.ModPath, "temp");
+        var tempFolder = Program.TempPath;
         Directory.CreateDirectory(tempFolder);
         Directory.CreateDirectory(Program.ModPath);
 
-        await Program.PlatformService.DownloadLatestMusic(tempFolder, cancellationToken);
+        await Program.PlatformService.DownloadLatestMusic(tempFolder);
     }
 
     private static async Task<string> Ensure7ZipExists(string tempFolder)
@@ -61,17 +59,17 @@ public static class Patcher
 
         Directory.CreateDirectory(tempFolder);
         await using var fileStream = new FileStream(sevenZipPath, FileMode.Create, FileAccess.Write);
-        await stream.CopyToAsync(fileStream).ConfigureAwait(false);
+        await stream.CopyToAsync(fileStream);
 
         return sevenZipPath;
     }
 
-    public static async Task DownloadModifiedAsar(CancellationToken cancellationToken = default)
+    public static async Task DownloadModifiedAsar()
     {
-        var tempFolder = Path.Combine(Program.ModPath, "temp");
+        var tempFolder = Program.TempPath;
         var downloadedGzFile = Path.Combine(tempFolder, "app.asar.zst");
 
-        await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода", cancellationToken);
+        await DownloadFileWithProgress(GithubUrl, downloadedGzFile, "Загрузка мода");
         
         var asarPath = Program.PlatformService.GetAsarPath();
         var resourcesPath = Path.GetDirectoryName(asarPath)!;
@@ -86,21 +84,27 @@ public static class Patcher
         
         ReportProgress(50, "Распаковка asar...");
 
-        await Program.PlatformService.InstallMod(downloadedGzFile, tempFolder, cancellationToken);
+        await Program.PlatformService.InstallMod(downloadedGzFile, tempFolder);
         
         ReportProgress(100, "Готово!");
 
-        await BypassAsarIntegrity();
-        
-        await DownloadAndUnpackUnpackedAsar(cancellationToken);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            await BypassAsarIntegrity();
+        }
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            await DownloadAndUnpackUnpackedAsar();
+        }
     }
     
-    private static async Task DownloadAndUnpackUnpackedAsar(CancellationToken cancellationToken)
+    private static async Task DownloadAndUnpackUnpackedAsar()
     {
-        var tempFolder = Path.Combine(Program.ModPath, "temp");
+        var tempFolder = Program.TempPath;
         var unpackedAsarArchive = Path.Combine(tempFolder, "app.asar.unpacked.zip");
         
-        await DownloadFileWithProgress(AsarUnpackedUrl, unpackedAsarArchive, "Загрузка app.asar.unpacked", cancellationToken);
+        await DownloadFileWithProgress(AsarUnpackedUrl, unpackedAsarArchive, "Загрузка app.asar.unpacked");
         
         var asarPath = Program.PlatformService.GetAsarPath();
         var resourcesPath = Path.GetDirectoryName(asarPath)!;
@@ -112,7 +116,7 @@ public static class Patcher
         }
 
         ReportProgress(100, "Распаковка app.asar.unpacked...");
-        await Program.PlatformService.InstallModUnpacked(unpackedAsarArchive, tempFolder, cancellationToken);
+        await Program.PlatformService.InstallModUnpacked(unpackedAsarArchive, tempFolder);
         ReportProgress(100, "Распаковка app.asar.unpacked завершена");
     }
 
@@ -135,10 +139,14 @@ public static class Patcher
     public static async Task ExtractArchive(string archivePath, string outputPath, string tempFolder, string operationType)
     {
         var sevenZipPath = await Ensure7ZipExists(tempFolder);
-        await RunProcess(sevenZipPath, $"x \"{archivePath}\" -o\"{outputPath}\" -y", operationType);
+        var result = await RunProcess(sevenZipPath, $"x \"{archivePath}\" -o\"{outputPath}\" -y", operationType);
+        if (result.ExitCode != 0)
+        {
+            throw new Exception($"Ошибка выполнения операции '{operationType}'. Код выхода: {result.ExitCode}. {result.Error}");
+        }
     }
     
-    public static async Task RunProcess(string executable, string arguments, string operationType, string? workingDirectory = null, CancellationToken cancellationToken = default)
+    public static async Task<ProcessResult> RunProcess(string executable, string arguments, string operationType, string? workingDirectory = null)
     {
         var processInfo = new ProcessStartInfo(executable)
         {
@@ -155,22 +163,20 @@ public static class Patcher
             throw new InvalidOperationException($"Не удалось запустить процесс {processInfo.FileName}");
         }
 
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
 
-        if (process.ExitCode != 0)
-        {
-            var error = await process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(error))
-            {
-                error = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-            }
-            throw new Exception($"Ошибка выполнения операции '{operationType}'. Код выхода: {process.ExitCode}. {error}");
-        }
+        await process.WaitForExitAsync();
+
+        var output = await outputTask;
+        var error = await errorTask;
+
+        return new ProcessResult(process.ExitCode, output, error);
     }
 
     public static void CleanupTempFiles()
     {
-        var tempFolder = Path.Combine(Program.ModPath, "temp");
+        var tempFolder = Program.TempPath;
         if (Directory.Exists(tempFolder))
         {
             Directory.Delete(tempFolder, true);
@@ -196,7 +202,7 @@ public static class Patcher
 
             try
             {
-                await PerformDownloadAsync(url, destinationPath, progressStatusPrefix, cancellationToken);
+                await PerformDownload(url, destinationPath, progressStatusPrefix, cancellationToken);
                 return;
             }
             catch (Exception ex)
@@ -219,7 +225,7 @@ public static class Patcher
         }
     }
 
-    private static async Task PerformDownloadAsync(string url, string destinationPath, string progressStatusPrefix, CancellationToken cancellationToken)
+    private static async Task PerformDownload(string url, string destinationPath, string progressStatusPrefix, CancellationToken cancellationToken)
     {
         long resumePosition = 0;
         if (File.Exists(destinationPath))
@@ -233,7 +239,7 @@ public static class Patcher
             request.Headers.Range = new RangeHeaderValue(resumePosition, null);
         }
         
-        using var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
         {
@@ -246,16 +252,16 @@ public static class Patcher
         var readBytes = resumePosition;
         var isResume = resumePosition > 0 && response.StatusCode == HttpStatusCode.PartialContent;
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var fileStream = new FileStream(destinationPath, isResume ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, true);
 
         var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
         try
         {
             int bytesRead;
-            while ((bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+            while ((bytesRead = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
                 readBytes += bytesRead;
                 if (totalBytes > 0)
                 {

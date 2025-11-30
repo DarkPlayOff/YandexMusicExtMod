@@ -6,18 +6,18 @@ public interface IPlatformService
     
     string GetAsarPath();
 
-    Task DownloadLatestMusic(string tempFolder, CancellationToken cancellationToken);
+    Task DownloadLatestMusic(string tempFolder);
     
     Task<(bool, string)> IsSupported();
-    Task InstallMod(string archivePath, string tempFolder, CancellationToken cancellationToken);
+    Task InstallMod(string archivePath, string tempFolder);
     
-    Task InstallModUnpacked(string archivePath, string tempFolder, CancellationToken cancellationToken);
+    Task InstallModUnpacked(string archivePath, string tempFolder);
+
+    Task FinishInstallation(string tempFolder);
     
     Task CreateDesktopShortcut(string linkName, string path);
     
     void RunApplication();
-
-    string GetPatchMessage();
 
     string GetApplicationExecutablePath();
 }

@@ -10,17 +10,19 @@ public class PatcherService
     public async Task Patch(IProgress<(int, string)> progress)
     {
         await KillYandexMusicProcess();
+        var tempFolder = Program.TempPath;
         await Patcher.DownloadLatestMusic();
         await Patcher.DownloadModifiedAsar();
+        await Program.PlatformService.FinishInstallation(tempFolder);
+
         var latestVersion = await Update.GetLatestModVersion();
         if (latestVersion != null)
         {
             Update.SetInstalledVersion(latestVersion);
         }
+
         await CreateDesktopShortcut();
         
-        var message = Program.PlatformService.GetPatchMessage();
-        progress.Report((100, message));
     }
     
     private static async Task CreateDesktopShortcut()

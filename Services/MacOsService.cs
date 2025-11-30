@@ -18,7 +18,7 @@ public class MacOsService : BasePlatformService
         return Path.Combine(GetModPath(), "Contents", "Resources", "app.asar");
     }
 
-    public override async Task DownloadLatestMusic(string tempFolder, CancellationToken cancellationToken)
+    public override async Task DownloadLatestMusic(string tempFolder)
     {
         const string latestUrl = "https://music-desktop-application.s3.yandex.net/stable/Yandex_Music.dmg";
         var dmgPath = Path.Combine(tempFolder, DmgName);
@@ -26,10 +26,14 @@ public class MacOsService : BasePlatformService
         
         Directory.CreateDirectory(mountPath);
 
-        await Patcher.DownloadFileWithProgress(latestUrl, dmgPath, "Загрузка клиента", cancellationToken);
+        await Patcher.DownloadFileWithProgress(latestUrl, dmgPath, "Загрузка клиента");
 
         Patcher.ReportProgress(100, "Распаковка DMG...");
-        await Patcher.RunProcess("hdiutil", $"attach -mountpoint \"{mountPath}\" \"{dmgPath}\"", "Монтирования DMG", cancellationToken: cancellationToken);
+        var attachResult = await Patcher.RunProcess("hdiutil", $"attach -mountpoint \"{mountPath}\" \"{dmgPath}\"", "Монтирования DMG...");
+        if (attachResult.ExitCode != 0)
+        {
+            throw new Exception($"Ошибка монтирования DMG: {attachResult.Error}");
+        }
 
         var appPath = Path.Combine(mountPath, YandexMusicAppName);
         var targetAppPath = GetModPath();
@@ -39,25 +43,34 @@ public class MacOsService : BasePlatformService
             Directory.Delete(targetAppPath, true);
         }
 
-        await Patcher.RunProcess("cp", $"-R \"{appPath}\" \"/Applications/\"", "Копирования приложения", cancellationToken: cancellationToken);
-        await Patcher.RunProcess("hdiutil", $"detach \"{mountPath}\"", "Размонтирование DMG", cancellationToken: cancellationToken);
+        var copyResult = await Patcher.RunProcess("cp", $"-R \"{appPath}\" \"/Applications/\"", "Копирования приложения...");
+        if (copyResult.ExitCode != 0)
+        {
+            throw new Exception($"Ошибка копирования приложения: {copyResult.Error}");
+        }
+        
+        var detachResult = await Patcher.RunProcess("hdiutil", $"detach \"{mountPath}\"", "Размонтирование DMG...");
+        if (detachResult.ExitCode != 0)
+        {
+            throw new Exception($"Ошибка размонтирования DMG: {detachResult.Error}");
+        }
 
-        Patcher.ReportProgress(100, "Распаковка завершена");
+        Patcher.ReportProgress(100, "Распаковка завершена.");
     }
     
-    public override Task<(bool, string)> IsSupported()
+    public override async Task<(bool, string)> IsSupported()
     {
 #if MACOS
-        if (IsSipEnabled())
+        if (await IsSipEnabled())
         {
-            return Task.FromResult((false, "Отключите SIP для продолжения"));
+            return (false, "Отключите SIP для установки.");
         }
 #endif
-        return Task.FromResult((true, string.Empty));
+        return (true, string.Empty);
     }
     
     [SupportedOSPlatform("macos")]
-    private static bool IsSipEnabled()
+    private static async Task<bool> IsSipEnabled()
     {
         try
         {
@@ -73,8 +86,8 @@ public class MacOsService : BasePlatformService
                 }
             };
             process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
             return output.Contains("System Integrity Protection status: enabled.");
         }
         catch (Exception e)
@@ -93,14 +106,15 @@ public class MacOsService : BasePlatformService
     {
         Process.Start("open", $"-a \"{YandexMusicAppName}\"");
     }
+public override string GetApplicationExecutablePath()
+{
+    return Path.Combine(GetModPath(), YandexMusicAppName);
+}
 
-    public override string GetPatchMessage()
-    {
-        return "Клиент установлен в папку программ!";
-    }
+public override Task InstallModUnpacked(string archivePath, string tempFolder)
+{
+    return Task.CompletedTask;
+}
 
-    public override string GetApplicationExecutablePath()
-    {
-        return Path.Combine(GetModPath(), YandexMusicAppName);
-    }
+    
 }
