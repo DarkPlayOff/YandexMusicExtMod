@@ -309,7 +309,7 @@ Devtools по умолчанию отключены. Чтобы включить
  <summary>Linux</summary>
 
 1. [Скачайте последнюю версию](https://github.com/DarkPlayOff/YandexMusicExtMod/releases/latest)
-2. После запустите `YandexMusicPatcher-linux` через терминал командой **sudo**
+2. После запустите `YandexMusicPatcher-linux` через терминал командой `sudo -E`
 3. Нажмите на кнопку **«Установить мод»**
 4. Можно запускать как обычный клиент Яндекс Музыки
    </details>
